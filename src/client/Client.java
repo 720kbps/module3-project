@@ -10,7 +10,6 @@ import java.util.concurrent.BlockingQueue;
 public class Client {
     
     private SocketChannel sock;
-
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
     private String token;
@@ -63,18 +62,19 @@ public class Client {
                     Message msg = sendingQueue.take();
                     if( msg.getType() == MessageType.DATA || msg.getType() == MessageType.DATA_SHORT ){
                         ByteBuffer data = msg.getData();
-                        data.position(0); //reset position just to be sure
-                        int length = data.capacity(); //assume capacity is also what we want to send here!
+                        data.position(0); // reset position just to be sure
+                        // assume capacity is also what we want to send here!
+                        int length = data.capacity();
                         ByteBuffer toSend = ByteBuffer.allocate(length+2);
                         if( msg.getType() == MessageType.DATA ){
                             toSend.put((byte) 3);
-                        } else { // must be DATA_SHORT due to check above
+                        } else {
                             toSend.put((byte) 6);
                         }                        
                         toSend.put((byte) length);
                         toSend.put(data);
                         toSend.position(0);
-                        // System.out.println("Sending "+Integer.toString(length)+" bytes!");
+                        //System.out.println("Sending "+Integer.toString(length)+" bytes!");
                         sock.write(toSend);
                     }                    
                 } catch(IOException e) {
@@ -219,7 +219,7 @@ public class Client {
                 while( sock.isConnected() ){
                     bytesRead = sock.read(recv);
                     if ( bytesRead > 0 ){
-                        // System.out.println("Received "+Integer.toString(bytesRead)+" bytes!");
+                        System.out.println("Received "+Integer.toString(bytesRead)+" bytes!");
                         parseMessage( recv, bytesRead );
                     } else {
                         break;
