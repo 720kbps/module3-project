@@ -11,7 +11,7 @@ public class Client {
     // ROMA COMMIT
     
     private SocketChannel sock;
-
+    // sex boomba
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
     private String token;
