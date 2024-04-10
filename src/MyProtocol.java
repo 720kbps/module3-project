@@ -43,16 +43,21 @@ public class MyProtocol{
             int new_line_offset = 0;
             while(true){
                 read = System.in.read(temp.array()); // Get data from stdin, hit enter to send!
+                System.out.println(
+                    "Read: " + read + " bytes from stdin"
+                );
                 if(read > 0){
+                    // sex read shoul be
                     // Check if last char is a return or newline, so we can strip it
                     if (temp.get(read-1) == '\n' || temp.get(read-1) == '\r' ) new_line_offset = 1;
                     // Check if second to last char is a return or newline, so we can strip it
                     if (read > 1 && (temp.get(read-2) == '\n' || temp.get(read-2) == '\r') ) new_line_offset = 2;
                     // copy data without newline / returns
                     ByteBuffer toSend = ByteBuffer.allocate(read-new_line_offset + 1);
-                    toSend.put((byte) (read-new_line_offset));
+                    // pune lungimea in prima pozitie
+                    toSend.put((byte) (read));
                     // enter data without newline / returns
-                    toSend.put( temp.array(), 1, read-new_line_offset );
+                    toSend.put( temp.array(), 0, read-new_line_offset );
                     Message msg;
                     if( (read-new_line_offset) > 2 ) {
                         msg = new Message(MessageType.DATA, toSend);
@@ -86,7 +91,7 @@ public class MyProtocol{
 
         public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
             int length = bytes.get(0);
-            for(int i=1; i<=length; i++) {
+            for(int i=1; i<length; i++) {
                 byte charByte = bytes.get(i);
                 System.out.print( (char) charByte + " " );
             }
