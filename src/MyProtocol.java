@@ -30,9 +30,11 @@ public class MyProtocol{
         receivedQueue = new LinkedBlockingQueue<Message>();
         sendingQueue = new LinkedBlockingQueue<Message>();
 
-        new Client(SERVER_IP, SERVER_PORT, frequency, token, receivedQueue, sendingQueue); // Give the client the Queues to use
+        // Give the client the Queues to use
+        new Client(SERVER_IP, SERVER_PORT, frequency, token, receivedQueue, sendingQueue);
 
-        new receiveThread(receivedQueue).start(); // Start thread to handle received messages!
+        // Start thread to handle received messages!
+        new receiveThread(receivedQueue).start();
 
         // handle sending from stdin from this thread.
         try{
@@ -42,12 +44,17 @@ public class MyProtocol{
             while(true){
                 read = System.in.read(temp.array()); // Get data from stdin, hit enter to send!
                 if(read > 0){
-                    if (temp.get(read-1) == '\n' || temp.get(read-1) == '\r' ) new_line_offset = 1; //Check if last char is a return or newline so we can strip it
-                    if (read > 1 && (temp.get(read-2) == '\n' || temp.get(read-2) == '\r') ) new_line_offset = 2; //Check if second to last char is a return or newline so we can strip it
-                    ByteBuffer toSend = ByteBuffer.allocate(read-new_line_offset); // copy data without newline / returns
-                    toSend.put( temp.array(), 0, read-new_line_offset ); // enter data without newline / returns
+                    // Check if last char is a return or newline, so we can strip it
+                    if (temp.get(read-1) == '\n' || temp.get(read-1) == '\r' ) new_line_offset = 1;
+                    // Check if second to last char is a return or newline, so we can strip it
+                    if (read > 1 && (temp.get(read-2) == '\n' || temp.get(read-2) == '\r') ) new_line_offset = 2;
+                    // copy data without newline / returns
+                    ByteBuffer toSend = ByteBuffer.allocate(read-new_line_offset + 1);
+                    toSend.put((byte) (read-new_line_offset));
+                    // enter data without newline / returns
+                    toSend.put( temp.array(), 0, read-new_line_offset );
                     Message msg;
-                    if( (read-new_line_offset) > 2 ){
+                    if( (read-new_line_offset) > 2 ) {
                         msg = new Message(MessageType.DATA, toSend);
                     } else {
                         msg = new Message(MessageType.DATA_SHORT, toSend);
@@ -77,9 +84,10 @@ public class MyProtocol{
             this.receivedQueue = receivedQueue;
         }
 
-        public void printByteBuffer(ByteBuffer bytes, int bytesLength){
-            for(int i=0; i<bytesLength; i++){
-                System.out.print( Byte.toString( bytes.get(i) )+" " );
+        public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
+            for(int i=0; i<bytesLength; i++) {
+                byte charByte = bytes.get(i);
+                System.out.print( (char) charByte + " " );
             }
             System.out.println();
         }
@@ -94,10 +102,10 @@ public class MyProtocol{
                         System.out.println("FREE");
                     } else if (m.getType() == MessageType.DATA){
                         System.out.print("DATA: ");
-                        printByteBuffer( m.getData(), m.getData().capacity() ); //Just print the data
+                        printByteBuffer( m.getData(), m.getData().capacity() );
                     } else if (m.getType() == MessageType.DATA_SHORT){
                         System.out.print("DATA_SHORT: ");
-                        printByteBuffer( m.getData(), m.getData().capacity() ); //Just print the data
+                        printByteBuffer( m.getData(), m.getData().capacity() );
                     } else if (m.getType() == MessageType.DONE_SENDING){
                         System.out.println("DONE_SENDING");
                     } else if (m.getType() == MessageType.HELLO){
