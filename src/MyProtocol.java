@@ -52,7 +52,7 @@ public class MyProtocol{
                     ByteBuffer toSend = ByteBuffer.allocate(read-new_line_offset + 1);
                     toSend.put((byte) (read-new_line_offset));
                     // enter data without newline / returns
-                    toSend.put( temp.array(), 0, read-new_line_offset );
+                    toSend.put( temp.array(), 1, read-new_line_offset );
                     Message msg;
                     if( (read-new_line_offset) > 2 ) {
                         msg = new Message(MessageType.DATA, toSend);
@@ -85,7 +85,8 @@ public class MyProtocol{
         }
 
         public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
-            for(int i=0; i<bytesLength; i++) {
+            int length = bytes.get(0);
+            for(int i=1; i<=length; i++) {
                 byte charByte = bytes.get(i);
                 System.out.print( (char) charByte + " " );
             }
