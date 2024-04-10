@@ -10,7 +10,7 @@ import java.util.concurrent.BlockingQueue;
 public class Client {
     
     private SocketChannel sock;
-    // sex
+    // sex boomba
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
     private String token;
