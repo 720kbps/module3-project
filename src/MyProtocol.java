@@ -18,10 +18,10 @@ public class MyProtocol{
     // The port to connect to. 8954 for the simulation server.
     private static int SERVER_PORT = 8954;
     // The frequency to use.
-    private static int frequency = 5800 //TODO: Set this to your group frequency!
+    private static int frequency = 5800; //TODO: Set this to your group frequency!
     // View the simulator at https://netsys.ewi.utwente.nl/integrationproject/
     // The token you received for your frequency range
-    String token = "your token";
+    String token = "java-53-ME854K6ZFTSIXDHC2V";
 
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;

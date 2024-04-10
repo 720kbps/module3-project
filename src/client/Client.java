@@ -165,7 +165,7 @@ public class Client {
                             messageReceiving = false;
                         }
                     } else {
-                        if ( d == 0x09 ){ // Connection successfull!
+                        if ( d == 0x09 ){ // Connection successfully!
                             // System.out.println("CONNECTED");
                             receivedQueue.put( new Message(MessageType.HELLO) );
                         } else if ( d == 0x01 ){ // FREE
