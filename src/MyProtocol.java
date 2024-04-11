@@ -15,7 +15,7 @@ public class MyProtocol {
     private static int frequency = 5800;
     String token = "java-53-ME854K6ZFTSIXDHC2V";
 
-    private static int src = new Random().nextInt(254);
+    private static final int src = new Random().nextInt(254);
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
 
