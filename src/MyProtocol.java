@@ -15,32 +15,34 @@ public class MyProtocol {
     private static int frequency = 5800;
     String token = "java-53-ME854K6ZFTSIXDHC2V";
 
+    private boolean freeLink = true;
+
     private static final int src = new Random().nextInt(254);
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
 
-    public MyProtocol(String server_ip, int server_port, int frequency) {
+    public MyProtocol (String server_ip, int server_port, int frequency) {
 
         receivedQueue = new LinkedBlockingQueue<Message>();
         sendingQueue = new LinkedBlockingQueue<Message>();
 
-        new Client(SERVER_IP, SERVER_PORT, frequency, token, receivedQueue, sendingQueue);
-        new receiveThread(receivedQueue).start();
+        new Client (SERVER_IP, SERVER_PORT, frequency, token, receivedQueue, sendingQueue);
+        new receiveThread (receivedQueue).start();
 
         try{
             ByteBuffer temp = ByteBuffer.allocate(1024);
             int read = 0;
             while (true) {
-                read = System.in.read(temp.array()); // Get data from stdin, hit enter to send!
+                read = System.in.read (temp.array()); // Get data from stdin, hit enter to send!
                 System.out.println("Read: " + read + " bytes from stdin");
-                sendPackets(read, temp);
+                sendPackets (read, temp);
             }
         } catch (InterruptedException | IOException e){ System.exit(2); }
     }
 
     public static void main (String args[]) {
         if (args.length > 0) frequency = Integer.parseInt(args[0]);
-        new MyProtocol(SERVER_IP, SERVER_PORT, frequency);
+        new MyProtocol (SERVER_IP, SERVER_PORT, frequency);
     }
 
     private class receiveThread extends Thread {
@@ -51,16 +53,16 @@ public class MyProtocol {
             this.receivedQueue = receivedQueue;
         }
 
-        public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
-            System.out.print("[" +getCurrentTime() + "] ");
+        public void printByteBuffer (ByteBuffer bytes, int bytesLength) {
+            System.out.print ("[" +getCurrentTime() + "] ");
             for (int j = 0; j < 6; j++)
             {
                 byte charByte = bytes.get(j);
-                System.out.print((int) charByte + " ");
+                System.out.print ((int) charByte + " ");
             }
             for (int i = 6; i < bytesLength; i++) {
                 byte charByte = bytes.get(i);
-                System.out.print((char) charByte + "");
+                System.out.print ((char) charByte + "");
             }
             System.out.println();
         }
@@ -71,14 +73,18 @@ public class MyProtocol {
                     Message m = receivedQueue.take();
                     if (m.getType() == MessageType.BUSY) {
                         System.out.println("BUSY");
+                        freeLink = false;
                     } else if (m.getType() == MessageType.FREE) {
                         System.out.println("FREE");
+                        freeLink = true;
                     } else if (m.getType() == MessageType.DATA) {
                         System.out.print("DATA: ");
                         printByteBuffer(m.getData(), m.getData().capacity());
+                        freeLink = false;
                     } else if (m.getType() == MessageType.DATA_SHORT) {
                         System.out.print("DATA_SHORT: ");
                         //printByteBuffer(m.getData(), m.getData().capacity());
+                        freeLink = false;
                     } else if (m.getType() == MessageType.DONE_SENDING) {
                         System.out.println("DONE_SENDING");
                     } else if (m.getType() == MessageType.HELLO) {
@@ -126,12 +132,9 @@ public class MyProtocol {
                 headerBuilder (toSend, 0, 0, 0,
                                0, false, false, 26);
                 toSend.put(temp.array(), position, 26);
-                if ((read - new_line_offset) > 2) {
-                    msg = new Message(MessageType.DATA, toSend);
-                } else {
-                    msg = new Message(MessageType.DATA_SHORT, toSend);
-                }
-                AlohaSend(msg);
+                System.out.println(read);
+                msg = new Message(MessageType.DATA, toSend);
+                sendf(msg);
                 position += 26;
                 read -= 26;
             }
@@ -139,12 +142,8 @@ public class MyProtocol {
             headerBuilder (toSend, 0, 0, 0,
                            0, true, false, read);
             toSend.put(temp.array(), position, read - new_line_offset);
-            if ((read - new_line_offset) > 2) {
-                msg = new Message(MessageType.DATA, toSend);
-            } else {
-                msg = new Message(MessageType.DATA_SHORT, toSend);
-            }
-            AlohaSend(msg);
+            msg = new Message(MessageType.DATA, toSend);
+            sendf(msg);
         }
     }
 
@@ -159,15 +158,14 @@ public class MyProtocol {
         packet.put((byte) length);
     }
 
-    public void AlohaSend(Message msg) throws InterruptedException {
-        // The probability grows with the size of the sending queue
-        int q = 60 - Math.min(sendingQueue.size(), 10);
+    public void sendf (Message msg) throws InterruptedException {
         while (true) {
-            if (new Random().nextInt(100) < q) {
+            if (freeLink) {
+                Thread.sleep(new Random().nextInt(500));
                 sendingQueue.put(msg);
                 break;
             }
-            Thread.sleep(1000); // 1 second time slot
+            Thread.sleep(1000);
         }
     }
 
