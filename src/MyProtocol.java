@@ -108,9 +108,10 @@ public class MyProtocol {
                 //            int length = Math.min(bytes.get(0), bytesLength);
                 int length = bytes.get(0);
                 System.out.println("Lungimea: " + length);
+                System.out.print("[" +getCurrentTime() + "] ");
                 for (int i = 1; i < length; i++) {
                     byte charByte = bytes.get(i);
-                    System.out.print((char) charByte + " ");
+                    System.out.print((char) charByte);
                 }
                 System.out.println();
             }
