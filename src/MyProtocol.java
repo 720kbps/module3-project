@@ -70,7 +70,13 @@ public class MyProtocol {
                     } else {
                         msg = new Message(MessageType.DATA_SHORT, toSend);
                     }
-                    sendingQueue.put(msg);
+                    while(!sendingQueue.contains(msg)) {
+                        if (new Random().nextInt(100) < 60) {
+                            sendingQueue.put(msg);
+                            break;
+                        }
+                        Thread.sleep(1000);
+                    }
                 }
             }
         } catch (InterruptedException | IOException e){
