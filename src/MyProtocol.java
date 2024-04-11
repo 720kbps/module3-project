@@ -2,6 +2,7 @@ import client.*;
 
 import java.nio.ByteBuffer;
 import java.io.IOException;
+import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -52,7 +53,15 @@ public class MyProtocol{
                     } else {
                         msg = new Message(MessageType.DATA_SHORT, toSend);
                     }
-                    sendingQueue.put(msg);
+                    while (!sendingQueue.contains(msg)) {
+                        if (new Random().nextInt(100) < 60) {
+                            System.out.println("SLOT - Sending data and hope for no collision.");
+                            sendingQueue.put(msg);
+                        } else {
+                            System.out.println("SLOT - Not sending data to give room for others.");
+                        }
+                        //sendingQueue.put(msg);
+                    }
                 }
             }
         } catch (InterruptedException e){
