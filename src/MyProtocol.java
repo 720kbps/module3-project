@@ -174,7 +174,7 @@ public class MyProtocol {
 
     /**
      * Formats the time at which the packet was received.
-     * @return
+     * @return the current time in the pattern [HH:mm:ss]
      */
     public static String getCurrentTime() {
         LocalTime currentTime = LocalTime.now();
