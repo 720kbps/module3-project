@@ -74,20 +74,24 @@ public class MyProtocol {
                     } else {
                         msg = new Message(MessageType.DATA_SHORT, toSend);
                     }
+
+                    /* ALOHA */
+
+                    // The probability grows with the size of the sending queue
+                    int q = 60 - Math.max(sendingQueue.size(), 10);
+
                     while(!sendingQueue.contains(msg)) {
-                        if (new Random().nextInt(100) < 60) {
+                        if (new Random().nextInt(100) < q) {
                             sendingQueue.put(msg);
                             break;
                         }
-                        Thread.sleep(1000);
+                        Thread.sleep(1000); // 1 second time slot
                     }
+
                 }
             }
-        } catch (InterruptedException e){
-            System.exit(2);
-        } catch (IOException e){
-            System.exit(2);
-        }
+        } catch (InterruptedException e){ System.exit(2); }
+        catch (IOException e) { System.exit(2); }
     }
 
     public static void main (String args[]){
