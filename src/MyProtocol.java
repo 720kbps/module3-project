@@ -31,11 +31,9 @@ public class MyProtocol{
         receivedQueue = new LinkedBlockingQueue<Message>();
         sendingQueue = new LinkedBlockingQueue<Message>();
 
-        // Give the client the Queues to use
-        new Client(SERVER_IP, SERVER_PORT, frequency, token, receivedQueue, sendingQueue);
+        new Client(SERVER_IP, SERVER_PORT, frequency, token, receivedQueue, sendingQueue); // Give the client the Queues to use
 
-        // Start thread to handle received messages!
-        new receiveThread(receivedQueue).start();
+        new receiveThread(receivedQueue).start(); // Start thread to handle received messages!
 
         // handle sending from stdin from this thread.
         try{
@@ -44,46 +42,13 @@ public class MyProtocol{
             int new_line_offset = 0;
             while(true){
                 read = System.in.read(temp.array()); // Get data from stdin, hit enter to send!
-                System.out.println(
-                    "Read: " + read + " bytes from stdin"
-                );
-                if(read > 0) {
-                    // sex read shoul be
-                    // Check if last char is a return or newline, so we can strip it
-                    if (temp.get(read - 1) == '\n' || temp.get(read - 1) == '\r') new_line_offset = 1;
-                    // Check if second to last char is a return or newline, so we can strip it
-                    if (read > 1 && (temp.get(read - 2) == '\n' || temp.get(read - 2) == '\r'))
-                        new_line_offset = 2;
-                    // copy data without newline / returns
-//                    ByteBuffer toSend = ByteBuffer.allocate(read - new_line_offset + 1);
-                    // pune lungimea in prima pozitie
-//                    toSend.put((byte) (read));
-//                    // enter data without newline / returns
-//                    toSend.put(temp.array(), 0, read - new_line_offset);
+                if(read > 0){
+                    if (temp.get(read-1) == '\n' || temp.get(read-1) == '\r' ) new_line_offset = 1; //Check if last char is a return or newline so we can strip it
+                    if (read > 1 && (temp.get(read-2) == '\n' || temp.get(read-2) == '\r') ) new_line_offset = 2; //Check if second to last char is a return or newline so we can strip it
+                    ByteBuffer toSend = ByteBuffer.allocate(read-new_line_offset); // copy data without newline / returns
+                    toSend.put( temp.array(), 0, read-new_line_offset ); // enter data without newline / returns
                     Message msg;
-                    int position=0; //pozitia din care incepe sa trimita pachetul
-                    //asta imparte mesajul in packet-uri de 32 de bytes
-                    while (read > 32) {
-                        ByteBuffer toSend = ByteBuffer.allocate(32);
-                        toSend.put((byte) (31));
-                        // enter data without newline / returns
-                        toSend.put(temp.array(), position, 31); //poate 31
-//                        ByteBuffer toSendpacket_size= toSend.slice(position,position+32);
-                        if ((read - new_line_offset) > 2) {
-                            msg = new Message(MessageType.DATA, toSend);
-                        } else {
-                            msg = new Message(MessageType.DATA_SHORT, toSend);
-                        }
-                        sendingQueue.put(msg);
-                        position+=31;
-                        read-= 31;
-                    }
-
-                    // asta face ultimul packet de size mai mic <32
-                    ByteBuffer toSend = ByteBuffer.allocate(read - new_line_offset+1);
-                    toSend.put((byte) (read));
-                    toSend.put(temp.array(), position, read - new_line_offset);
-                    if ((read - new_line_offset) > 2) {
+                    if( (read-new_line_offset) > 2 ){
                         msg = new Message(MessageType.DATA, toSend);
                     } else {
                         msg = new Message(MessageType.DATA_SHORT, toSend);
@@ -91,9 +56,11 @@ public class MyProtocol{
                     while (!sendingQueue.contains(msg)) {
                         if (new Random().nextInt(100) < 60) {
                             System.out.println("SLOT - Sending data and hope for no collision.");
+                            //Thread.sleep(1000);
                             sendingQueue.put(msg);
                         } else {
                             System.out.println("SLOT - Not sending data to give room for others.");
+                            Thread.sleep(1000);
                         }
                         //sendingQueue.put(msg);
                     }
@@ -103,8 +70,10 @@ public class MyProtocol{
             System.exit(2);
         } catch (IOException e){
             System.exit(2);
-        }        
+        }
+
     }
+
 
     public static void main(String args[]) {
         if(args.length > 0){
@@ -121,16 +90,14 @@ public class MyProtocol{
             this.receivedQueue = receivedQueue;
         }
 
-        public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
-//            int length = Math.min(bytes.get(0), bytesLength);
-            int length = bytes.get(0);
-            System.out.println("Lungimea: "+length);
-            for(int i=1; i<length; i++) {
-                byte charByte = bytes.get(i);
-                System.out.print( (char) charByte + " " );
+        public void printByteBuffer(ByteBuffer bytes, int bytesLength){
+            for(int i=0; i<bytesLength; i++){
+                System.out.print( (char) ( bytes.get(i) )+" " );
             }
             System.out.println();
         }
+
+
 
         public void run(){
             while(true) {
