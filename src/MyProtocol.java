@@ -85,8 +85,7 @@ public class MyProtocol {
                     }
                 }
             }
-        } catch (InterruptedException e){ System.exit(2); }
-        catch (IOException e) { System.exit(2); }
+        } catch (InterruptedException | IOException e){ System.exit(2); }
     }
 
     public static void main (String args[]){
@@ -155,8 +154,7 @@ public class MyProtocol {
     public static String getCurrentTime() {
         LocalTime currentTime = LocalTime.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("[HH:mm:ss]");
-        String formattedTime = currentTime.format(formatter);
-        return formattedTime;
+        return currentTime.format(formatter);
     }
 }
 
