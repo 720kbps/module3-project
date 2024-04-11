@@ -32,19 +32,23 @@ public class MyProtocol {
 
         new receiveThread(receivedQueue).start();
 
-        try{
+        try {
             ByteBuffer temp = ByteBuffer.allocate(1024);
             int read = 0;
             int new_line_offset = 0;
             while(true){
                 read = System.in.read(temp.array());
                 if(read > 0){
-                    if (temp.get(read-1) == '\n' || temp.get(read-1) == '\r' ) new_line_offset = 1;
-                    if (read > 1 && (temp.get(read-2) == '\n' || temp.get(read-2) == '\r') ) new_line_offset = 2;
+                    if (temp.get(read-1) == '\n' || temp.get(read-1) == '\r' ) {
+                        new_line_offset = 1;
+                    }
+                    if (read > 1 && (temp.get(read-2) == '\n' || temp.get(read-2) == '\r') ) {
+                        new_line_offset = 2;
+                    }
                     ByteBuffer toSend = ByteBuffer.allocate(read-new_line_offset);
                     toSend.put( temp.array(), 0, read-new_line_offset );
                     Message msg;
-                    if( (read-new_line_offset) > 2 ){
+                    if( (read-new_line_offset) > 2 ) {
                         msg = new Message(MessageType.DATA, toSend);
                     } else {
                         msg = new Message(MessageType.DATA_SHORT, toSend);
@@ -54,13 +58,13 @@ public class MyProtocol {
             }
         } catch (InterruptedException e){
             System.exit(2);
-        } catch (IOException e){
+        } catch (IOException e) {
             System.exit(2);
         }
     }
 
     public static void main(String args[]) {
-        if(args.length > 0){
+        if(args.length > 0) {
             frequency = Integer.parseInt(args[0]);
         }
         new MyProtocol(SERVER_IP, SERVER_PORT, frequency);        
