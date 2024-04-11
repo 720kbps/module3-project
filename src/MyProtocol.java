@@ -154,8 +154,7 @@ public class MyProtocol {
     public static String getCurrentTime() {
         LocalTime currentTime = LocalTime.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("[HH:mm:ss]");
-        String formattedTime = currentTime.format(formatter);
-        return formattedTime;
+        return currentTime.format(formatter);
     }
 }
 
