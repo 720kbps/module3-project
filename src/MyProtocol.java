@@ -19,9 +19,6 @@ public class MyProtocol {
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
 
-    private byte seqNum = 0;
-    private byte ackNum = 0;
-
     public MyProtocol(String server_ip, int server_port, int frequency) {
 
         receivedQueue = new LinkedBlockingQueue<Message>();
@@ -33,149 +30,13 @@ public class MyProtocol {
         try{
             ByteBuffer temp = ByteBuffer.allocate(1024);
             int read = 0;
-            int new_line_offset = 0;
             while (true) {
                 read = System.in.read(temp.array()); // Get data from stdin, hit enter to send!
-                System.out.println(
-                        "Read: " + read + " bytes from stdin"
-                );
-                if(read > 0) {
-                    // Check if last char a return or newline, so we can strip it
-                    if (temp.get(read - 1) == '\n' || temp.get(read - 1) == '\r') new_line_offset = 1;
-                    // Check if second to last char is a return or newline, so we can strip it
-                    if (read > 1 && (temp.get(read - 2) == '\n' || temp.get(read - 2) == '\r'))
-                        new_line_offset = 2;
-                    Message msg;
-                    int position=0; //pozitia din care incepe sa trimita pachetul
-                    //asta imparte mesajul in packet-uri de 32 de bytes
-                    while (read > 32) {
-                        ByteBuffer toSend = ByteBuffer.allocate(32);
-                        toSend.put((byte) (31));
-                        // enter data without newline / returns
-                        toSend.put(temp.array(), position, 31); // poate 31
-                        if ((read - new_line_offset) > 2) {
-                            msg = new Message(MessageType.DATA, toSend);
-                        } else {
-                            msg = new Message(MessageType.DATA_SHORT, toSend);
-                        }
-                        sendingQueue.put(msg);
-                        //eu hz dc aici trb sa fie 30 da daca lucreaza nu ma jalui
-                        position+=30;
-                        read-= 30;
-                    }
-
-                    // asta face ultimul packet de size mai mic <32
-                    ByteBuffer toSend = ByteBuffer.allocate(read - new_line_offset+1);
-                    toSend.put((byte) (read));
-                    toSend.put(temp.array(), position, read - new_line_offset);
-                    if ((read - new_line_offset) > 2) {
-                        msg = new Message(MessageType.DATA, toSend);
-                    } else {
-                        msg = new Message(MessageType.DATA_SHORT, toSend);
-                    }
-
-//                    /* ALOHA */
-//
-//                    // The probability grows with the size of the sending queue
-//                    int q = 60 - Math.min(sendingQueue.size(), 10);
-//
-//                    while (true) {
-//                        if (new Random().nextInt(100) < q) {
-//                            sendingQueue.put(msg);
-//                            break;
-//                        }
-//                        Thread.sleep(1000); // 1 second time slot
-//                    }
-
-
-
-//                    int pos = 0;
-//                    while (read - pos > 26) {
-//                        sendDataPacket(ByteBuffer.wrap(temp.array(), pos, 26), false);
-//                        pos += 26;
-//                    }
-//
-//
-//                    sendDataPacket(ByteBuffer.wrap(temp.array(), pos, read - pos - new_line_offset), true);
-
-                    int pos = 0;
-                    while (read - pos > 26) {
-                        sendDataPacket(ByteBuffer.wrap(temp.array(), pos, 26), false);
-                        pos += 26;
-
-                    }
-
-
-                    sendDataPacket(ByteBuffer.wrap(temp.array(), pos, read - pos - new_line_offset), true);
-                }
+                System.out.println("Read: " + read + " bytes from stdin");
+                sendPackets(read, temp);
             }
         } catch (InterruptedException | IOException e){ System.exit(2); }
     }
-
-
-
-
-
-
-    private void sendDataPacket(ByteBuffer temp, boolean isLastPacket) throws InterruptedException {
-        temp.flip();
-
-        while (temp.hasRemaining()) {
-            int payloadLength = Math.min(temp.remaining(), 26);
-            ByteBuffer payload = ByteBuffer.allocate(payloadLength);
-            payload.put(temp);
-            payload.flip();
-
-            byte[] packet = constructPacket(payload, isLastPacket);
-
-            int q = 60 - Math.min(sendingQueue.size(), 10);
-            if (new Random().nextInt(100) < q) {
-                sendingQueue.put(new Message(MessageType.DATA, ByteBuffer.wrap(packet)));
-            } else {
-                Thread.sleep(1000);
-            }
-        }
-    }
-
-
-    private byte[] constructPacket(ByteBuffer payload, boolean isLastPacket) {
-        int packetLength = payload.remaining() + 6;
-
-        ByteBuffer packet = ByteBuffer.allocate(packetLength);
-        packet.put((byte) src);
-        packet.put((byte) 0);
-        packet.put(seqNum);
-        packet.put(ackNum);
-        packet.put((byte) 0);
-        byte flags = (byte) ((isLastPacket ? 0b10000000 : 0) | (seqNum == 0 ? 0b00100000 : 0));
-        packet.put(flags);
-        packet.put((byte) payload.remaining());
-
-        packet.position(1);
-        packet.put(calculateDestinationAddress(packet.array()[0]));
-        packet.put(calculateTTL(packet.array()[0]));
-
-        packet.put(payload.array(), 0, payload.remaining());
-
-        byte[] packetArray = new byte[packetLength];
-        packet.flip();
-        packet.get(packetArray);
-        return packetArray;
-    }
-
-    private byte calculateDestinationAddress(byte sourceAddress) {
-        return (byte) (255 - sourceAddress);
-    }
-
-    private byte calculateTTL(byte sourceAddress) {
-        return (byte) (255 - sourceAddress);
-    }
-
-
-
-
-
-
 
     public static void main (String args[]) {
         if (args.length > 0) frequency = Integer.parseInt(args[0]);
@@ -191,14 +52,15 @@ public class MyProtocol {
         }
 
         public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
-            //            int length = Math.min(bytes.get(0), bytesLength);
-            //bytes.flip();
-            int length = bytes.remaining();
-            System.out.println("Lungimea: " + length);
             System.out.print("[" +getCurrentTime() + "] ");
-            for (int i = 1; i < length; i++) {
+            for (int j = 0; j < 6; j++)
+            {
+                byte charByte = bytes.get(j);
+                System.out.print((int) charByte + " ");
+            }
+            for (int i = 6; i < bytesLength; i++) {
                 byte charByte = bytes.get(i);
-                System.out.print((char) charByte);
+                System.out.print((char) charByte + "");
             }
             System.out.println();
         }
@@ -216,7 +78,7 @@ public class MyProtocol {
                         printByteBuffer(m.getData(), m.getData().capacity());
                     } else if (m.getType() == MessageType.DATA_SHORT) {
                         System.out.print("DATA_SHORT: ");
-                        printByteBuffer(m.getData(), m.getData().capacity());
+                        //printByteBuffer(m.getData(), m.getData().capacity());
                     } else if (m.getType() == MessageType.DONE_SENDING) {
                         System.out.println("DONE_SENDING");
                     } else if (m.getType() == MessageType.HELLO) {
@@ -239,30 +101,6 @@ public class MyProtocol {
     }
 
     /**
-     * Formats a header for a packet.
-     * @param source The source address
-     * @param destination The destination address
-     * @param seq The sequence number
-     * @param ack The acknowledgment number
-     * @param TTL The time to live
-     * @param FIN The FIN flag
-     * @param RMS The RMS flag
-     * @param length The length of the packet
-     * @return the packet with the header formatted.
-     */
-    private ByteBuffer formatHeader(byte source, byte destination, byte seq, byte ack, int TTL, boolean FIN, boolean RMS, byte length) {
-        ByteBuffer packet = ByteBuffer.allocate(6);
-        packet.put(source);
-        packet.put(destination);
-        packet.put(seq);
-        packet.put(ack);
-        // Format flags and TTL into a single byte
-        packet.put((byte) ((TTL << 4) | (FIN ? 0b10 : 0) | (RMS ? 0b01 : 0)));
-        packet.put(length);
-        return packet;
-    }
-
-    /**
      * Formats the time at which the packet was received.
      * @return the current time in the pattern [HH:mm:ss]
      */
@@ -271,6 +109,68 @@ public class MyProtocol {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("[HH:mm:ss]");
         return currentTime.format(formatter);
     }
+
+    public void sendPackets(int read, ByteBuffer temp) throws InterruptedException {
+        int new_line_offset = 0;
+        if (read > 0) {
+            if (temp.get(read - 1) == '\n' || temp.get(read - 1) == '\r') {
+                new_line_offset = 1;
+            }
+            if (read > 1 && (temp.get(read - 2) == '\n' || temp.get(read - 2) == '\r')) {
+                new_line_offset = 2;
+            }
+            Message msg;
+            int position=0;
+            while (read > 26) {
+                ByteBuffer toSend = ByteBuffer.allocate(32);
+                headerBuilder (toSend, 0, 0, 0,
+                               0, false, false, 26);
+                toSend.put(temp.array(), position, 26);
+                if ((read - new_line_offset) > 2) {
+                    msg = new Message(MessageType.DATA, toSend);
+                } else {
+                    msg = new Message(MessageType.DATA_SHORT, toSend);
+                }
+                AlohaSend(msg);
+                position += 26;
+                read -= 26;
+            }
+            ByteBuffer toSend = ByteBuffer.allocate(32);
+            headerBuilder (toSend, 0, 0, 0,
+                           0, true, false, read);
+            toSend.put(temp.array(), position, read - new_line_offset);
+            if ((read - new_line_offset) > 2) {
+                msg = new Message(MessageType.DATA, toSend);
+            } else {
+                msg = new Message(MessageType.DATA_SHORT, toSend);
+            }
+            AlohaSend(msg);
+        }
+    }
+
+    public void headerBuilder (ByteBuffer packet, int destination, int seq, int ack,
+                               int TTL, boolean FIN, boolean RMS, int length) {
+        packet.put((byte) src);
+        packet.put((byte) destination);
+        packet.put((byte) seq);
+        packet.put((byte) ack);
+        // Format flags and TTL into a single byte
+        packet.put((byte) ((TTL << 4) | (FIN ? 0b10 : 0) | (RMS ? 0b01 : 0)));
+        packet.put((byte) length);
+    }
+
+    public void AlohaSend(Message msg) throws InterruptedException {
+        // The probability grows with the size of the sending queue
+        int q = 60 - Math.min(sendingQueue.size(), 10);
+        while (true) {
+            if (new Random().nextInt(100) < q) {
+                sendingQueue.put(msg);
+                break;
+            }
+            Thread.sleep(1000); // 1 second time slot
+        }
+    }
+
 }
 
 
