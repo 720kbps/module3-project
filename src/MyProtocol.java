@@ -6,12 +6,8 @@ import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
-
-/**
-* This is just some example code to show you how to interact 
-* with the server using the provided client and two queues.
-* Feel free to modify this code in any way you like!
-*/
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 
 public class MyProtocol {
     private static String SERVER_IP = "netsys.ewi.utwente.nl";
@@ -87,7 +83,6 @@ public class MyProtocol {
                         }
                         Thread.sleep(1000); // 1 second time slot
                     }
-
                 }
             }
         } catch (InterruptedException e){ System.exit(2); }
@@ -153,6 +148,14 @@ public class MyProtocol {
                     }
                 }
             }
+    }
+
+    // Prints current time in the "[HH:mm:ss]" pattern
+    public static String getCurrentTime() {
+        LocalTime currentTime = LocalTime.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("[HH:mm:ss]");
+        String formattedTime = currentTime.format(formatter);
+        return formattedTime;
     }
 }
 
