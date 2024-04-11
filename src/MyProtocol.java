@@ -150,7 +150,34 @@ public class MyProtocol {
             }
     }
 
-    // Prints current time in the "[HH:mm:ss]" pattern
+    /**
+     * Formats a header for a packet.
+     * @param source The source address
+     * @param destination The destination address
+     * @param seq The sequence number
+     * @param ack The acknowledgment number
+     * @param TTL The time to live
+     * @param FIN The FIN flag
+     * @param RMS The RMS flag
+     * @param length The length of the packet
+     * @return the packet with the header formatted.
+     */
+    private ByteBuffer formatHeader(byte source, byte destination, byte seq, byte ack, int TTL, boolean FIN, boolean RMS, byte length) {
+        ByteBuffer packet = ByteBuffer.allocate(6);
+        packet.put(source);
+        packet.put(destination);
+        packet.put(seq);
+        packet.put(ack);
+        // Format flags and TTL into a single byte
+        packet.put((byte) ((TTL << 4) | (FIN ? 0b10 : 0) | (RMS ? 0b01 : 0)));
+        packet.put(length);
+        return packet;
+    }
+
+    /**
+     * Formats the time at which the packet was received.
+     * @return
+     */
     public static String getCurrentTime() {
         LocalTime currentTime = LocalTime.now();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("[HH:mm:ss]");
