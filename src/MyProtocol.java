@@ -76,7 +76,7 @@ public class MyProtocol {
                     // The probability grows with the size of the sending queue
                     int q = 60 - Math.max(sendingQueue.size(), 10);
 
-                    while(!sendingQueue.contains(msg)) {
+                    while (true) {
                         if (new Random().nextInt(100) < q) {
                             sendingQueue.put(msg);
                             break;
