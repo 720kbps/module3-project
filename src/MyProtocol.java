@@ -53,7 +53,13 @@ public class MyProtocol {
                     } else {
                         msg = new Message(MessageType.DATA_SHORT, toSend);
                     }
-                    sendingQueue.put(msg);
+                    while(!sendingQueue.contains(msg)) {
+                        if (new Random().nextInt(100) < 60) {
+                            sendingQueue.put(msg);
+                            break;
+                        }
+                        Thread.sleep(1000);
+                    }
                 }
             }
         } catch (InterruptedException e) {
@@ -79,7 +85,7 @@ public class MyProtocol {
         }
 
         public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
-            for (int i=8; i<bytesLength; i++) {
+            for (int i=0; i<bytesLength; i++) {
                 System.out.print( (char) ( bytes.get(i) ) + " " );
             }
             System.out.println();
