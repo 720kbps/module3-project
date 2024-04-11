@@ -36,7 +36,7 @@ public class MyProtocol {
             ByteBuffer temp = ByteBuffer.allocate(1024);
             int read = 0;
             int new_line_offset = 0;
-            while(true){
+            while (true) {
                 read = System.in.read(temp.array());
                 if(read > 0){
                     if (temp.get(read-1) == '\n' || temp.get(read-1) == '\r' ) {
@@ -56,7 +56,7 @@ public class MyProtocol {
                     sendingQueue.put(msg);
                 }
             }
-        } catch (InterruptedException e){
+        } catch (InterruptedException e) {
             System.exit(2);
         } catch (IOException e) {
             System.exit(2);
@@ -73,47 +73,47 @@ public class MyProtocol {
     private class receiveThread extends Thread {
         private BlockingQueue<Message> receivedQueue;
 
-        public receiveThread(BlockingQueue<Message> receivedQueue){
+        public receiveThread(BlockingQueue<Message> receivedQueue) {
             super();
             this.receivedQueue = receivedQueue;
         }
 
-        public void printByteBuffer(ByteBuffer bytes, int bytesLength){
-            for(int i=0; i<bytesLength; i++){
+        public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
+            for (int i=8; i<bytesLength; i++) {
                 System.out.print( (char) ( bytes.get(i) ) + " " );
             }
             System.out.println();
         }
 
-        public void run(){
-            while(true) {
+        public void run() {
+            while (true) {
                 try{
                     Message m = receivedQueue.take();
-                    if (m.getType() == MessageType.BUSY){
+                    if (m.getType() == MessageType.BUSY) {
                         System.out.println("BUSY");
-                    } else if (m.getType() == MessageType.FREE){
+                    } else if (m.getType() == MessageType.FREE) {
                         System.out.println("FREE");
-                    } else if (m.getType() == MessageType.DATA){
+                    } else if (m.getType() == MessageType.DATA) {
                         System.out.print("DATA: ");
                         printByteBuffer( m.getData(), m.getData().capacity() );
-                    } else if (m.getType() == MessageType.DATA_SHORT){
+                    } else if (m.getType() == MessageType.DATA_SHORT) {
                         System.out.print("DATA_SHORT: ");
                         printByteBuffer( m.getData(), m.getData().capacity() );
-                    } else if (m.getType() == MessageType.DONE_SENDING){
+                    } else if (m.getType() == MessageType.DONE_SENDING) {
                         System.out.println("DONE_SENDING");
-                    } else if (m.getType() == MessageType.HELLO){
+                    } else if (m.getType() == MessageType.HELLO) {
                         System.out.println("HELLO");
-                    } else if (m.getType() == MessageType.SENDING){
+                    } else if (m.getType() == MessageType.SENDING) {
                         System.out.println("SENDING");
-                    } else if (m.getType() == MessageType.END){
+                    } else if (m.getType() == MessageType.END) {
                         System.out.println("END");
                         System.exit(0);
-                    } else if (m.getType() == MessageType.TOKEN_ACCEPTED){
+                    } else if (m.getType() == MessageType.TOKEN_ACCEPTED) {
                         System.out.println("Token Valid!");
-                    } else if (m.getType() == MessageType.TOKEN_REJECTED){
+                    } else if (m.getType() == MessageType.TOKEN_REJECTED) {
                         System.out.println("Token Rejected!");
                     }
-                } catch (InterruptedException e){
+                } catch (InterruptedException e) {
                     System.err.println("Failed to take from queue: "+e);
                 }                
             }
