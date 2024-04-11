@@ -58,9 +58,9 @@ public class MyProtocol {
                 byte charByte = bytes.get(j);
                 System.out.print((int) charByte + " ");
             }
-            for (int i = 7; i < bytesLength; i++) {
+            for (int i = 6; i < bytesLength; i++) {
                 byte charByte = bytes.get(i);
-                System.out.print((char) charByte + " ");
+                System.out.print((char) charByte + "");
             }
             System.out.println();
         }
@@ -124,7 +124,7 @@ public class MyProtocol {
             while (read > 26) {
                 ByteBuffer toSend = ByteBuffer.allocate(32);
                 headerBuilder (toSend, 0, 0, 0,
-                               0, false, false, 27);
+                               0, false, false, 26);
                 toSend.put(temp.array(), position, 26);
                 if ((read - new_line_offset) > 2) {
                     msg = new Message(MessageType.DATA, toSend);
@@ -132,8 +132,8 @@ public class MyProtocol {
                     msg = new Message(MessageType.DATA_SHORT, toSend);
                 }
                 AlohaSend(msg);
-                position += 25;
-                read -= 25;
+                position += 26;
+                read -= 26;
             }
             ByteBuffer toSend = ByteBuffer.allocate(32);
             headerBuilder (toSend, 0, 0, 0,
