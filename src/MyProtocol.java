@@ -19,6 +19,9 @@ public class MyProtocol {
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
 
+    private byte seqNum = 0;
+    private byte ackNum = 0;
+
     public MyProtocol(String server_ip, int server_port, int frequency) {
 
         receivedQueue = new LinkedBlockingQueue<Message>();
@@ -71,22 +74,108 @@ public class MyProtocol {
                         msg = new Message(MessageType.DATA_SHORT, toSend);
                     }
 
-                    /* ALOHA */
+//                    /* ALOHA */
+//
+//                    // The probability grows with the size of the sending queue
+//                    int q = 60 - Math.min(sendingQueue.size(), 10);
+//
+//                    while (true) {
+//                        if (new Random().nextInt(100) < q) {
+//                            sendingQueue.put(msg);
+//                            break;
+//                        }
+//                        Thread.sleep(1000); // 1 second time slot
+//                    }
 
-                    // The probability grows with the size of the sending queue
-                    int q = 60 - Math.min(sendingQueue.size(), 10);
 
-                    while (true) {
-                        if (new Random().nextInt(100) < q) {
-                            sendingQueue.put(msg);
-                            break;
-                        }
-                        Thread.sleep(1000); // 1 second time slot
+
+//                    int pos = 0;
+//                    while (read - pos > 26) {
+//                        sendDataPacket(ByteBuffer.wrap(temp.array(), pos, 26), false);
+//                        pos += 26;
+//                    }
+//
+//
+//                    sendDataPacket(ByteBuffer.wrap(temp.array(), pos, read - pos - new_line_offset), true);
+
+                    int pos = 0;
+                    while (read - pos > 26) {
+                        sendDataPacket(ByteBuffer.wrap(temp.array(), pos, 26), false);
+                        pos += 26;
+
                     }
+
+
+                    sendDataPacket(ByteBuffer.wrap(temp.array(), pos, read - pos - new_line_offset), true);
                 }
             }
         } catch (InterruptedException | IOException e){ System.exit(2); }
     }
+
+
+
+
+
+
+    private void sendDataPacket(ByteBuffer temp, boolean isLastPacket) throws InterruptedException {
+        temp.flip();
+
+        while (temp.hasRemaining()) {
+            int payloadLength = Math.min(temp.remaining(), 26);
+            ByteBuffer payload = ByteBuffer.allocate(payloadLength);
+            payload.put(temp);
+            payload.flip();
+
+            byte[] packet = constructPacket(payload, isLastPacket);
+
+            int q = 60 - Math.min(sendingQueue.size(), 10);
+            if (new Random().nextInt(100) < q) {
+                sendingQueue.put(new Message(MessageType.DATA, ByteBuffer.wrap(packet)));
+            } else {
+                Thread.sleep(1000);
+            }
+        }
+    }
+
+
+    private byte[] constructPacket(ByteBuffer payload, boolean isLastPacket) {
+        int packetLength = payload.remaining() + 6;
+
+        ByteBuffer packet = ByteBuffer.allocate(packetLength);
+        packet.put((byte) src);
+        packet.put((byte) 0);
+        packet.put(seqNum);
+        packet.put(ackNum);
+        packet.put((byte) 0);
+        byte flags = (byte) ((isLastPacket ? 0b10000000 : 0) | (seqNum == 0 ? 0b00100000 : 0));
+        packet.put(flags);
+        packet.put((byte) payload.remaining());
+
+        packet.position(1);
+        packet.put(calculateDestinationAddress(packet.array()[0]));
+        packet.put(calculateTTL(packet.array()[0]));
+
+        packet.put(payload.array(), 0, payload.remaining());
+
+        byte[] packetArray = new byte[packetLength];
+        packet.flip();
+        packet.get(packetArray);
+        return packetArray;
+    }
+
+    private byte calculateDestinationAddress(byte sourceAddress) {
+        return (byte) (255 - sourceAddress);
+    }
+
+    private byte calculateTTL(byte sourceAddress) {
+        return (byte) (255 - sourceAddress);
+    }
+
+
+
+
+
+
 
     public static void main (String args[]) {
         if (args.length > 0) frequency = Integer.parseInt(args[0]);
@@ -103,7 +192,8 @@ public class MyProtocol {
 
         public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
             //            int length = Math.min(bytes.get(0), bytesLength);
-            int length = bytes.get(0);
+            //bytes.flip();
+            int length = bytes.remaining();
             System.out.println("Lungimea: " + length);
             System.out.print("[" +getCurrentTime() + "] ");
             for (int i = 1; i < length; i++) {
