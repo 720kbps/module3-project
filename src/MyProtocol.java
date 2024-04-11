@@ -85,8 +85,7 @@ public class MyProtocol {
                     }
                 }
             }
-        } catch (InterruptedException e){ System.exit(2); }
-        catch (IOException e) { System.exit(2); }
+        } catch (InterruptedException | IOException e){ System.exit(2); }
     }
 
     public static void main (String args[]){
