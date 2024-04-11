@@ -47,18 +47,11 @@ public class MyProtocol{
                     "Read: " + read + " bytes from stdin"
                 );
                 if(read > 0) {
-                    // sex read shoul be
-                    // Check if last char is a return or newline, so we can strip it
+                    // Check if last char a return or newline, so we can strip it
                     if (temp.get(read - 1) == '\n' || temp.get(read - 1) == '\r') new_line_offset = 1;
                     // Check if second to last char is a return or newline, so we can strip it
                     if (read > 1 && (temp.get(read - 2) == '\n' || temp.get(read - 2) == '\r'))
                         new_line_offset = 2;
-                    // copy data without newline / returns
-//                    ByteBuffer toSend = ByteBuffer.allocate(read - new_line_offset + 1);
-                    // pune lungimea in prima pozitie
-//                    toSend.put((byte) (read));
-//                    // enter data without newline / returns
-//                    toSend.put(temp.array(), 0, read - new_line_offset);
                     Message msg;
                     int position=0; //pozitia din care incepe sa trimita pachetul
                     //asta imparte mesajul in packet-uri de 32 de bytes
@@ -67,15 +60,15 @@ public class MyProtocol{
                         toSend.put((byte) (31));
                         // enter data without newline / returns
                         toSend.put(temp.array(), position, 31); //poate 31
-//                        ByteBuffer toSendpacket_size= toSend.slice(position,position+32);
                         if ((read - new_line_offset) > 2) {
                             msg = new Message(MessageType.DATA, toSend);
                         } else {
                             msg = new Message(MessageType.DATA_SHORT, toSend);
                         }
                         sendingQueue.put(msg);
-                        position+=31;
-                        read-= 31;
+                        //eu hz dc aici trb sa fie 30 da daca lucreaza nu ma jalui
+                        position+=30;
+                        read-= 30;
                     }
 
                     // asta face ultimul packet de size mai mic <32
