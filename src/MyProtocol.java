@@ -44,11 +44,30 @@ public class MyProtocol {
                     }
                     if (read > 1 && (temp.get(read-2) == '\n' || temp.get(read-2) == '\r') ) {
                         new_line_offset = 2;
-                    }
-                    ByteBuffer toSend = ByteBuffer.allocate(read-new_line_offset);
-                    toSend.put( temp.array(), 0, read-new_line_offset );
                     Message msg;
-                    if( (read-new_line_offset) > 2 ) {
+                    int position=0; //pozitia din care incepe sa trimita pachetul
+                    //asta imparte mesajul in packet-uri de 32 de bytes
+                    while (read > 32) {
+                        ByteBuffer toSend = ByteBuffer.allocate(32);
+                        toSend.put((byte) (31));
+                        // enter data without newline / returns
+                        toSend.put(temp.array(), position, 31); //poate 31
+                        if ((read - new_line_offset) > 2) {
+                            msg = new Message(MessageType.DATA, toSend);
+                        } else {
+                            msg = new Message(MessageType.DATA_SHORT, toSend);
+                        }
+                        sendingQueue.put(msg);
+                        //eu hz dc aici trb sa fie 30 da daca lucreaza nu ma jalui
+                        position+=30;
+                        read-= 30;
+                    }
+
+                    // asta face ultimul packet de size mai mic <32
+                    ByteBuffer toSend = ByteBuffer.allocate(read - new_line_offset+1);
+                    toSend.put((byte) (read));
+                    toSend.put(temp.array(), position, read - new_line_offset);
+                    if ((read - new_line_offset) > 2) {
                         msg = new Message(MessageType.DATA, toSend);
                     } else {
                         msg = new Message(MessageType.DATA_SHORT, toSend);
@@ -58,9 +77,9 @@ public class MyProtocol {
             }
         } catch (InterruptedException e){
             System.exit(2);
-        } catch (IOException e) {
+        } catch (IOException e){
             System.exit(2);
-        }
+        }        
     }
 
     public static void main(String args[]) {
@@ -78,9 +97,13 @@ public class MyProtocol {
             this.receivedQueue = receivedQueue;
         }
 
-        public void printByteBuffer(ByteBuffer bytes, int bytesLength){
-            for(int i=0; i<bytesLength; i++){
-                System.out.print( (char) ( bytes.get(i) ) + " " );
+        public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
+//            int length = Math.min(bytes.get(0), bytesLength);
+            int length = bytes.get(0);
+            System.out.println("Lungimea: "+length);
+            for(int i=1; i<length; i++) {
+                byte charByte = bytes.get(i);
+                System.out.print( (char) charByte + " " );
             }
             System.out.println();
         }
