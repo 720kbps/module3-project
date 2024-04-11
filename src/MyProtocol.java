@@ -50,9 +50,8 @@ public class MyProtocol{
                     if (read > 1 && (temp.get(read-2) == '\n' || temp.get(read-2) == '\r') ) new_line_offset = 2;
                     // copy data without newline / returns
                     ByteBuffer toSend = ByteBuffer.allocate(read-new_line_offset + 1);
-                    toSend.put((byte) (read-new_line_offset));
                     // enter data without newline / returns
-                    toSend.put( temp.array(), 1, read-new_line_offset );
+                    toSend.put( temp.array(), 0, read-new_line_offset );
                     Message msg;
                     if( (read-new_line_offset) > 2 ) {
                         msg = new Message(MessageType.DATA, toSend);
@@ -85,10 +84,9 @@ public class MyProtocol{
         }
 
         public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
-            int length = bytes.get(0);
-            for(int i=1; i<=length; i++) {
+            for(int i=1; i<bytesLength; i++) {
                 byte charByte = bytes.get(i);
-                System.out.print( (char) charByte + " " );
+                System.out.print( (char) charByte + "" );
             }
             System.out.println();
         }
