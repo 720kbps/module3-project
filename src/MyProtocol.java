@@ -41,7 +41,9 @@ public class MyProtocol {
                         "Read: " + read + " bytes from stdin"
                 );
                 if(read > 0) {
+                    // Check if last char a return or newline, so we can strip it
                     if (temp.get(read - 1) == '\n' || temp.get(read - 1) == '\r') new_line_offset = 1;
+                    // Check if second to last char is a return or newline, so we can strip it
                     if (read > 1 && (temp.get(read - 2) == '\n' || temp.get(read - 2) == '\r'))
                         new_line_offset = 2;
                     Message msg;
@@ -50,7 +52,8 @@ public class MyProtocol {
                     while (read > 32) {
                         ByteBuffer toSend = ByteBuffer.allocate(32);
                         toSend.put((byte) (31));
-                        toSend.put(temp.array(), position, 31);
+                        // enter data without newline / returns
+                        toSend.put(temp.array(), position, 31); //poate 31
                         if ((read - new_line_offset) > 2) {
                             msg = new Message(MessageType.DATA, toSend);
                         } else {
@@ -61,6 +64,7 @@ public class MyProtocol {
                         position+=30;
                         read-= 30;
                     }
+
                     // asta face ultimul packet de size mai mic <32
                     ByteBuffer toSend = ByteBuffer.allocate(read - new_line_offset+1);
                     toSend.put((byte) (read));
@@ -79,11 +83,12 @@ public class MyProtocol {
                     }
                 }
             }
-        } catch (InterruptedException | IOException e){
+        } catch (InterruptedException e){
+            System.exit(2);
+        } catch (IOException e){
             System.exit(2);
         }
     }
-
 
     public static void main (String args[]){
             if (args.length > 0) {
