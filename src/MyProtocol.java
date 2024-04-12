@@ -134,7 +134,7 @@ public class MyProtocol {
                 toSend.put(temp.array(), position, 26);
                 System.out.println(read);
                 msg = new Message(MessageType.DATA, toSend);
-                sendf(msg);
+                sendPacketsHelper(msg);
                 position += 26;
                 read -= 26;
             }
@@ -143,7 +143,7 @@ public class MyProtocol {
                            0, true, false, read);
             toSend.put(temp.array(), position, read - new_line_offset);
             msg = new Message(MessageType.DATA, toSend);
-            sendf(msg);
+            sendPacketsHelper(msg);
         }
     }
 
@@ -158,7 +158,7 @@ public class MyProtocol {
         packet.put((byte) length);
     }
 
-    public void sendf (Message msg) throws InterruptedException {
+    public void sendPacketsHelper (Message msg) throws InterruptedException {
         while (true) {
             if (freeLink) {
                 Thread.sleep(new Random().nextInt(500));
