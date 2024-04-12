@@ -33,7 +33,7 @@ public class MyProtocol {
             ByteBuffer temp = ByteBuffer.allocate(1024);
             int read = 0;
             while (true) {
-                read = System.in.read (temp.array()); // Get data from stdin, hit enter to send!
+                read = System.in.read (temp.array());
                 System.out.println("Read: " + read + " bytes from stdin");
                 sendPackets (read, temp);
             }
