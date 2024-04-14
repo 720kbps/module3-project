@@ -2,13 +2,8 @@ import client.*;
 
 import java.nio.ByteBuffer;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.Scanner;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.*;
+import java.util.concurrent.*;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
@@ -19,10 +14,14 @@ public class MyProtocol {
     String token = "java-53-ME854K6ZFTSIXDHC2V";
 
     private static final byte src = (byte) new Random().nextInt(255);
-    // Address from 0 to 254
-    // Address 255 or byte -1 is used for broadcast to all nodes (neighboring)
+    // Source address from 0 to 254
+    // Source address 255 or byte -1 is used for broadcast to all nodes (neighboring)
 
-    private boolean freeLink = true; // Keeps the link state
+    private static String SRCusername = "";
+    // Username of the source
+
+    private boolean freeLink = true;
+    // Keeps the link state
 
     private List<RoutingInfo> routingTable = new ArrayList<>();
     private BlockingQueue<Message> receivedQueue;
@@ -36,13 +35,15 @@ public class MyProtocol {
 
         new Client (SERVER_IP, SERVER_PORT, frequency, token, receivedQueue, sendingQueue);
         new receiveThread (receivedQueue).start();
+        routingMessage.start();
+        clearRoutingTable.start();
 
         Thread.sleep(1000); // wait 1 second for framework
         chatInit();
 
         try{
             ByteBuffer temp = ByteBuffer.allocate(1024);
-            int read = 0;
+            int read;
             while (true) {
                 read = System.in.read (temp.array());
                 System.out.println("Read: " + read + " bytes from stdin");
@@ -60,7 +61,9 @@ public class MyProtocol {
             System.out.print("Invalid username(>25)\nEnter new username: ");
             username = scanner.nextLine();
         }
-        initRoutingMessage(username);
+        SRCusername = username;
+        routingTable.add(new RoutingInfo(SRCusername, src, src));
+        initRoutingMessage();
     }
 
     public static String getCurrentTime() {
@@ -84,7 +87,7 @@ public class MyProtocol {
 
         // TODO: Adjust for use in chat - only use the bellow for debugging
         public void printByteBuffer (ByteBuffer bytes, int bytesLength) {
-            System.out.print ("[" +getCurrentTime() + "] ");
+            System.out.print ("[" + getCurrentTime() + "] ");
             for (int j = 0; j < 6; j++)
             {
                 byte charByte = bytes.get(j);
@@ -109,19 +112,20 @@ public class MyProtocol {
                         freeLink = true;
                     } else if (m.getType() == MessageType.DATA) {
                         freeLink = true;
-                        System.out.print("DATA: ");
-                        printByteBuffer (m.getData(), m.getData().capacity());
+                        //System.out.print("DATA: ");
+                        //printByteBuffer (m.getData(), m.getData().capacity());
                         routingUpdate (m.getData());
                     } else if (m.getType() == MessageType.DATA_SHORT) {
                         // System.out.print("DATA_SHORT: ");
                         // printByteBuffer(m.getData(), m.getData().capacity());
                         freeLink = false;
                     } else if (m.getType() == MessageType.DONE_SENDING) {
-                        System.out.println("DONE_SENDING");
+                        freeLink = true;
+                        // System.out.println("DONE_SENDING");
                     } else if (m.getType() == MessageType.HELLO) {
                         System.out.println("HELLO");
                     } else if (m.getType() == MessageType.SENDING) {
-                        System.out.println("SENDING");
+                        // System.out.println("SENDING");
                     } else if (m.getType() == MessageType.END) {
                         System.out.println("END");
                         System.exit(0);
@@ -182,24 +186,45 @@ public class MyProtocol {
         // CA (collision avoidance) implementation
         while (true) {
             if (freeLink) {
-                Thread.sleep(new Random().nextInt(500)); // Random back off
                 sendingQueue.put(msg);
+                Thread.sleep(new Random().nextInt(500) + 500); // Random back off
                 break;
             }
             Thread.sleep(1000); // Time slots of 1 second
         }
     }
 
-    public void initRoutingMessage (String username) {
-        routingTable.add(new RoutingInfo(username, src, src));
+    public void initRoutingMessage() {
         ByteBuffer routingMessage = ByteBuffer.allocate(32);
         headerBuilder(routingMessage, src, (byte) 255, 0, 0, 0,
-                      false, true, true, username.length());
-        for (char c : username.toCharArray()) { routingMessage.put((byte) c); }
+                      false, true, true, SRCusername.length());
+        for (char c : SRCusername.toCharArray()) { routingMessage.put((byte) c); }
         Message msg = new Message(MessageType.DATA, routingMessage);
         try { sendPacketsHelper(msg); }
         catch (InterruptedException e) {}
     }
+
+    Thread routingMessage = new Thread(() -> {
+        while (true) {
+            if (!Objects.equals(SRCusername, "")) {
+                initRoutingMessage();
+            }
+            try {
+                Thread.sleep(1000);
+                Thread.sleep(new Random().nextInt(700));
+            } catch (InterruptedException e) { e.printStackTrace(); }
+        }
+    });
+
+    Thread clearRoutingTable = new Thread(() -> {
+        while (true) {
+            try {
+                Thread.sleep(30000);
+            } catch (InterruptedException e) { e.printStackTrace(); }
+            routingTable.clear();
+            routingTable.add(new RoutingInfo(SRCusername, src, src));
+        }
+    });
 
     public boolean isValidUsername (String username) { return username.length() <= 25; }
 
@@ -218,9 +243,11 @@ public class MyProtocol {
             System.out.print(routingInfo.address + " ");
             System.out.println(routingInfo.nextHopAddress);
         }
+        System.out.println("");
     }
 
     public void routingUpdate (ByteBuffer packet) {
+        printRoutingTable();
         ByteBuffer routingMessage = ByteBuffer.allocate(32);
         String username = "";
         for (int i = 0; i < 6 + (int) packet.get(5); i++) {
@@ -232,18 +259,15 @@ public class MyProtocol {
             routingTable.add(new RoutingInfo(username, packet.get(0), src));
             routingMessage.put(src);
             Message msg = new Message(MessageType.DATA, routingMessage);
-            System.out.println("SENT");
-            try { sendPacketsHelper(msg); }
+            try { sendingQueue.put(msg); }
             catch (InterruptedException e) {}
-            printRoutingTable();
         } else if (packet.get(4) == 1 && !isInRoutingTable (packet.get(0))) {
-            int ss = (int) packet.get(5) + 1;
+            int ss = (int) packet.get(5) + 6;
             routingTable.add(new RoutingInfo(username, packet.get(0),
                                                  packet.get(ss)));
             Message msg = new Message(MessageType.DATA, packet);
             try { sendPacketsHelper(msg); }
-            catch (InterruptedException e) {}
-            printRoutingTable();
+            catch (InterruptedException e) { }
         }
     }
 }
