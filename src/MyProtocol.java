@@ -210,8 +210,8 @@ public class MyProtocol {
                 initRoutingMessage();
             }
             try {
-                Thread.sleep(1000);
-                Thread.sleep(new Random().nextInt(700));
+                Thread.sleep(2000);
+                Thread.sleep(new Random().nextInt(3000));
             } catch (InterruptedException e) { e.printStackTrace(); }
         }
     });
@@ -219,7 +219,7 @@ public class MyProtocol {
     Thread clearRoutingTable = new Thread(() -> {
         while (true) {
             try {
-                Thread.sleep(30000);
+                Thread.sleep(120000);
             } catch (InterruptedException e) { e.printStackTrace(); }
             routingTable.clear();
             routingTable.add(new RoutingInfo(SRCusername, src, src));
