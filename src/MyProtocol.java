@@ -49,13 +49,14 @@ public class MyProtocol {
             int read;
             while(true) {
                 read = System.in.read(temp.array());
-                System.out.println("Read: " + read + " bytes from stdin");
-                sendPackets(read, temp);
+                if (read < 1024) sendPackets(read, temp);
+                else System.out.println("Character limit 1024 exceeded");
             }
         } catch(InterruptedException | IOException e) { System.exit(2); }
     }
 
     private void chatInit() {
+        System.out.println("⁶\uD80C\uDD53");
         System.out.println("Your source address is: " + src + "\nChoose a username please");
         Scanner scanner = new Scanner(System.in);
         System.out.print("Enter username: ");
@@ -172,6 +173,7 @@ public class MyProtocol {
             toSend.put(temp.array(), position, read - new_line_offset);
             msg = new Message(MessageType.DATA, toSend);
             sendPacketsHelper(msg);
+            System.out.println("Sent");
         }
     }
 
@@ -250,7 +252,7 @@ public class MyProtocol {
     }
 
     public void routingUpdate (ByteBuffer packet) {
-        printRoutingTable();
+        // printRoutingTable();
         ByteBuffer routingMessage = ByteBuffer.allocate(32);
         String username = "";
         for (int i = 0; i < 6 + (int) packet.get(5); i++) {
