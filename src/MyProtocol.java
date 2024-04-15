@@ -13,43 +13,46 @@ public class MyProtocol {
     private static int frequency = 5800;
     String token = "java-53-ME854K6ZFTSIXDHC2V";
 
-    private static final byte src = (byte) new Random().nextInt(255);
     // Source address from 0 to 254
     // Source address 255 or byte -1 is used for broadcast to all nodes (neighboring)
+    private static final byte src = (byte) new Random().nextInt(255);
 
-    private static String SRCusername = "";
-    // Username of the source
+    private static String SRCusername = ""; // Username of the source from above
 
-    private boolean freeLink = true;
-    // Keeps the link state
+    private boolean freeLink = true; // Keeps the link state ~ for CA
 
+    // All the connections are stored here
     private List<RoutingInfo> routingTable = new ArrayList<>();
+
     private BlockingQueue<Message> receivedQueue;
     private BlockingQueue<Message> sendingQueue;
 
-    public MyProtocol (String server_ip, int server_port, int frequency)
+    public MyProtocol(String server_ip, int server_port, int frequency)
             throws InterruptedException {
 
         receivedQueue = new LinkedBlockingQueue<Message>();
         sendingQueue = new LinkedBlockingQueue<Message>();
 
-        new Client (SERVER_IP, SERVER_PORT, frequency, token, receivedQueue, sendingQueue);
+        new Client(SERVER_IP, SERVER_PORT, frequency, token, receivedQueue, sendingQueue);
         new receiveThread (receivedQueue).start();
-        routingMessage.start();
-        clearRoutingTable.start();
+
+        routingMessage.start(); // Routing message thread
+        clearRoutingTable.start(); // Routing update thread
 
         Thread.sleep(1000); // wait 1 second for framework
-        chatInit();
+        chatInit(); // Chat initiation
 
-        try{
+        // TODO: Implement input mechanic for chat
+
+        try {
             ByteBuffer temp = ByteBuffer.allocate(1024);
             int read;
-            while (true) {
-                read = System.in.read (temp.array());
+            while(true) {
+                read = System.in.read(temp.array());
                 System.out.println("Read: " + read + " bytes from stdin");
-                sendPackets (read, temp);
+                sendPackets(read, temp);
             }
-        } catch (InterruptedException | IOException e) { System.exit(2); }
+        } catch(InterruptedException | IOException e) { System.exit(2); }
     }
 
     private void chatInit() {
@@ -57,7 +60,7 @@ public class MyProtocol {
         Scanner scanner = new Scanner(System.in);
         System.out.print("Enter username: ");
         String username = scanner.nextLine();
-        while (!isValidUsername(username)) {
+        while(!isValidUsername(username)) {
             System.out.print("Invalid username(>25)\nEnter new username: ");
             username = scanner.nextLine();
         }
@@ -86,16 +89,16 @@ public class MyProtocol {
         }
 
         // TODO: Adjust for use in chat - only use the bellow for debugging
-        public void printByteBuffer (ByteBuffer bytes, int bytesLength) {
-            System.out.print ("[" + getCurrentTime() + "] ");
+        public void printByteBuffer(ByteBuffer bytes, int bytesLength) {
+            System.out.print("[" + getCurrentTime() + "] ");
             for (int j = 0; j < 6; j++)
             {
                 byte charByte = bytes.get(j);
-                System.out.print ((int) charByte + " ");
+                System.out.print((int) charByte + " ");
             }
             for (int i = 6; i < bytesLength; i++) {
                 byte charByte = bytes.get(i);
-                System.out.print ((char) charByte + "");
+                System.out.print((char) charByte + "");
             }
             System.out.println();
         }
@@ -105,15 +108,15 @@ public class MyProtocol {
                 try {
                     Message m = receivedQueue.take();
                     if (m.getType() == MessageType.BUSY) {
-                        // System.out.println("BUSY");
+                        System.out.println("BUSY");
                         freeLink = false;
                     } else if (m.getType() == MessageType.FREE) {
-                        // System.out.println("FREE");
+                        System.out.println("FREE");
                         freeLink = true;
                     } else if (m.getType() == MessageType.DATA) {
                         freeLink = true;
-                        //System.out.print("DATA: ");
-                        //printByteBuffer (m.getData(), m.getData().capacity());
+                        System.out.print("DATA: ");
+                        printByteBuffer (m.getData(), m.getData().capacity());
                         routingUpdate (m.getData());
                     } else if (m.getType() == MessageType.DATA_SHORT) {
                         // System.out.print("DATA_SHORT: ");
@@ -141,20 +144,20 @@ public class MyProtocol {
         }
     }
 
-    public void sendPackets (int read, ByteBuffer temp) throws InterruptedException {
+    public void sendPackets(int read, ByteBuffer temp) throws InterruptedException {
         int new_line_offset = 0;
-        if (read > 0) {
-            if (temp.get(read - 1) == '\n' || temp.get(read - 1) == '\r') {
+        if(read > 0) {
+            if(temp.get(read - 1) == '\n' || temp.get(read - 1) == '\r') {
                 new_line_offset = 1;
             }
-            if (read > 1 && (temp.get(read - 2) == '\n' || temp.get(read - 2) == '\r')) {
+            if(read > 1 && (temp.get(read - 2) == '\n' || temp.get(read - 2) == '\r')) {
                 new_line_offset = 2;
             }
             Message msg;
             int position=0;
-            while (read > 26) {
+            while(read > 26) {
                 ByteBuffer toSend = ByteBuffer.allocate(32);
-                headerBuilder (toSend, src, (byte) 0, 0, 0,
+                headerBuilder(toSend, src, (byte) 0, 0, 0,
                                0, false, false, false, 26);
                 toSend.put(temp.array(), position, 26);
                 System.out.println(read);
@@ -164,7 +167,7 @@ public class MyProtocol {
                 read -= 26;
             }
             ByteBuffer toSend = ByteBuffer.allocate(32);
-            headerBuilder (toSend, src, (byte) 0, 0, 0,
+            headerBuilder(toSend, src, (byte) 0, 0, 0,
                            0, true, false, false, read);
             toSend.put(temp.array(), position, read - new_line_offset);
             msg = new Message(MessageType.DATA, toSend);
@@ -172,7 +175,7 @@ public class MyProtocol {
         }
     }
 
-    public void headerBuilder (ByteBuffer packet, byte source, byte destination, int seq, int ack,
+    public void headerBuilder(ByteBuffer packet, byte source, byte destination, int seq, int ack,
                                int TTL, boolean FIN, boolean RMS, boolean INIT, int length) {
         packet.put(source); // Source Address
         packet.put(destination); // Destination Address
@@ -184,8 +187,8 @@ public class MyProtocol {
 
     public void sendPacketsHelper (Message msg) throws InterruptedException {
         // CA (collision avoidance) implementation
-        while (true) {
-            if (freeLink) {
+        while(true) {
+            if(freeLink) {
                 sendingQueue.put(msg);
                 Thread.sleep(new Random().nextInt(500) + 500); // Random back off
                 break;
@@ -212,14 +215,14 @@ public class MyProtocol {
             try {
                 Thread.sleep(2000);
                 Thread.sleep(new Random().nextInt(3000));
-            } catch (InterruptedException e) { e.printStackTrace(); }
+            } catch(InterruptedException e) { e.printStackTrace(); }
         }
     });
 
     Thread clearRoutingTable = new Thread(() -> {
-        while (true) {
+        while(true) {
             try {
-                Thread.sleep(120000);
+                Thread.sleep(60000);
             } catch (InterruptedException e) { e.printStackTrace(); }
             routingTable.clear();
             routingTable.add(new RoutingInfo(SRCusername, src, src));
@@ -267,7 +270,7 @@ public class MyProtocol {
                                                  packet.get(ss)));
             Message msg = new Message(MessageType.DATA, packet);
             try { sendPacketsHelper(msg); }
-            catch (InterruptedException e) { }
+            catch(InterruptedException e) { }
         }
     }
 }
