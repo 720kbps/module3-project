@@ -177,14 +177,14 @@ public class MyProtocol {
                 read -= 26;
             }
             sentSeq = seq;
+            seq++;
             ByteBuffer toSend = ByteBuffer.allocate(32);
             headerBuilder(toSend, src, (byte) 0, seq, 0,
                            0, false, true, false, false, read);
             toSend.put(temp.array(), position, read - new_line_offset);
-            seq++;
-            sentSeq = seq;
             msg = new Message(MessageType.DATA, toSend);
             sendPacketsHelper(msg);
+            sentSeq = seq;
             System.out.println("Sent");
         }
     }
@@ -320,8 +320,8 @@ public class MyProtocol {
                     }
                 }
                 ByteBuffer ack = ByteBuffer.allocate(32);
-                    headerBuilder(ack, src, packet.get(0), 0, (packet.get(2) & 0xFF),
-                                  0, false, true, false, false, 0);
+                int tack = (packet.get(2) & 0xFF);
+                headerBuilder(ack, src, packet.get(0), 0, tack, 0, false, true, false, false, 0);
                 Message msg = new Message(MessageType.DATA, ack);
                 sendPacketsHelper(msg);
             } else if(packet.get(3) != 0 && packet.get(2) == 0) {
