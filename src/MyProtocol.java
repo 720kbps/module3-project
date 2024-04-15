@@ -321,7 +321,7 @@ public class MyProtocol {
                 }
                 ByteBuffer ack = ByteBuffer.allocate(32);
                 int tack = (packet.get(2) & 0xFF);
-                headerBuilder(ack, src, packet.get(0), 0, tack, 0, false, true, false, false, 0);
+                headerBuilder(ack, src, packet.get(0), 0, tack, 0, false, false, false, false, 0);
                 Message msg = new Message(MessageType.DATA, ack);
                 sendPacketsHelper(msg);
             } else if(packet.get(3) != 0 && packet.get(2) == 0) {
