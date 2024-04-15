@@ -41,8 +41,8 @@ public class MyProtocol {
         new Client(SERVER_IP, SERVER_PORT, frequency, token, receivedQueue, sendingQueue);
         new receiveThread (receivedQueue).start();
 
-        // routingMessage.start(); // Routing message thread
-        // clearRoutingTable.start(); // Routing update thread
+        routingMessage.start(); // Routing message thread
+        clearRoutingTable.start(); // Routing update thread
 
         Thread.sleep(1000); // wait 1 second for framework
         chatInit(); // Chat initiation
@@ -123,7 +123,7 @@ public class MyProtocol {
                         freeLink = true;
                         System.out.print("DATA: ");
                         printByteBuffer (m.getData(), m.getData().capacity());
-                        // if(m.getData().get(1) == -1) routingUpdate (m.getData());
+                        if(m.getData().get(1) == -1) routingUpdate (m.getData());
                         receivePackets (m.getData());
                     } else if (m.getType() == MessageType.DATA_SHORT) {
                         // System.out.print("DATA_SHORT: ");
@@ -172,7 +172,7 @@ public class MyProtocol {
                 toSend.put(temp.array(), position, 26);
                 System.out.println("ss" + sentSeq);
                 msg = new Message(MessageType.DATA, toSend);
-                sendPacketsHelper(msg);
+                stopAndWaitSend(msg);
                 position += 26;
                 read -= 26;
             }
@@ -183,7 +183,7 @@ public class MyProtocol {
                            0, false, true, false, false, read);
             toSend.put(temp.array(), position, read - new_line_offset);
             msg = new Message(MessageType.DATA, toSend);
-            sendPacketsHelper(msg);
+            stopAndWaitSend(msg);
             sentSeq = seq;
             System.out.println("Sent");
         }
@@ -262,10 +262,10 @@ public class MyProtocol {
     }
 
     public void routingUpdate (ByteBuffer packet) {
-        // printRoutingTable();
+        printRoutingTable();
         ByteBuffer routingMessage = ByteBuffer.allocate(32);
         String username = "";
-        for (int i = 0; i < 5 + (int) packet.get(5); i++) {
+        for (int i = 0; i < 6 + (int) packet.get(5); i++) {
             if (i > 5) username += (char) packet.get(i);
             if (i == 4)  routingMessage.put((byte) 1);
             else routingMessage.put(packet.get(i));
@@ -286,7 +286,7 @@ public class MyProtocol {
     }
 
     public void receivePackets (ByteBuffer packet) throws InterruptedException {
-        if (true) { // if(packet.get(1) != src) {
+        if(packet.get(1) != -1) {
             if(packet.get(3) == 0 && packet.get(2) != 0) {
                 if(packet.get(4) == 2) {
                     int q = isInIncomingBuffer(packet.get(0), packet.get(2) & 0xFF);
@@ -340,7 +340,7 @@ public class MyProtocol {
 
     public String buildMessage (String message, ByteBuffer packet) {
         StringBuilder messageBuilder = new StringBuilder(message);
-        for(int i = 6; i < 5 + packet.get(5); i++) {
+        for(int i = 6; i < 6 + packet.get(5); i++) {
             messageBuilder.append((char) packet.get(i));
         }
         message = messageBuilder.toString();
@@ -363,6 +363,19 @@ public class MyProtocol {
             System.out.println(i.fullMessageArrived);
         }
         System.out.println();
+    }
+
+    public void stopAndWaitSend (Message msg) throws InterruptedException {
+        int delay = 3000;
+        while(true) {
+            if(delay == 3000) {
+                delay = 0;
+                sendPacketsHelper(msg);
+            }
+            if(receivedAck == sentSeq + 1) break;
+            Thread.sleep(100);
+            delay += 100;
+        }
     }
 
 }
