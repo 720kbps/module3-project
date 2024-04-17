@@ -17,7 +17,7 @@ public class MyProtocol {
 
     // Source address from 0 to 254
     // Source address 255 or byte -1 is used for broadcast to all nodes (neighboring)
-    private static final byte SRC = (byte) new Random().nextInt(255);
+    private static final byte SRC = (byte) (1 + new Random().nextInt(254));
 
     private static String srcUsername = ""; // Username of the source from above
 
@@ -105,7 +105,7 @@ public class MyProtocol {
                     int read;
                     read = System.in.read(temp.array());
                     if (read < 1024) {
-                        sendPackets(read, temp, dst, nextHop);
+                        sendPackets(read, temp, dst, nextHop, SRC);
                     } else {
                         System.out.println("Character limit 1024 exceeded");
                     }
@@ -162,8 +162,8 @@ public class MyProtocol {
                         freeLink = true;
                     } else if (m.getType() == MessageType.DATA) {
                         freeLink = true;
-                        System.out.print("DATA: ");
-                        printByteBuffer (m.getData(), m.getData().capacity());
+                        // System.out.print("DATA: ");
+                        // printByteBuffer (m.getData(), m.getData().capacity());
                         if (m.getData().get(1) == -1) {
                             routingUpdate(m.getData());
                         }
@@ -194,7 +194,7 @@ public class MyProtocol {
         }
     }
 
-    private void sendPackets(int read, ByteBuffer temp, byte dst, byte frw)
+    private void sendPackets(int read, ByteBuffer temp, byte dst, byte frw, byte src)
             throws InterruptedException {
         System.out.println();
         int new_line_offset = 0;
@@ -206,19 +206,14 @@ public class MyProtocol {
                 new_line_offset = 2;
             }
             Message msg;
-            int progress = 0;
-            int full = read / 26;
             int position = 0;
             int seq = 1 + new Random().nextInt(200);
             while (read > 26) {
                 sentSeq = seq;
                 seq++;
                 ByteBuffer toSend = ByteBuffer.allocate(32);
-                headerBuilder(toSend, SRC, dst, seq, frw, (frw != SRC),
+                headerBuilder(toSend, src, dst, seq, frw, (frw != SRC),
                               false, false, false, 26);
-                progress++;
-                int percentage = (int) (((float) progress / (float) full) * 100);
-                if (frw == SRC) System.out.println("Progress: " + percentage + " %");
                 toSend.put(temp.array(), position, 26);
                 msg = new Message(MessageType.DATA, toSend);
                 stopAndWaitSend(msg);
@@ -228,13 +223,12 @@ public class MyProtocol {
             sentSeq = seq;
             seq++;
             ByteBuffer toSend = ByteBuffer.allocate(32);
-            headerBuilder(toSend, SRC, dst, seq, frw, (frw != SRC),
+            headerBuilder(toSend, src, dst, seq, frw, (frw != SRC),
                           true, false, false, read);
             toSend.put(temp.array(), position, read - new_line_offset);
             msg = new Message(MessageType.DATA, toSend);
             stopAndWaitSend(msg);
             sentSeq = seq;
-            if (frw == SRC) System.out.println("Sent");
         }
     }
 
@@ -311,8 +305,8 @@ public class MyProtocol {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            routingTable.clear(); // clear the routing table
-            routingTable.add(new RoutingInfo(srcUsername, SRC, SRC)); // add the src in the table
+            routingTable.clear();
+            routingTable.add(new RoutingInfo(srcUsername, SRC, SRC));
         }
     });
 
@@ -398,67 +392,84 @@ public class MyProtocol {
 
     private void receivePackets(ByteBuffer packet) throws InterruptedException {
         if (packet.get(1) == SRC || packet.get(3) == SRC) {
-            if (packet.get(2) != 0 && !packetSet.contains(packet)) {
-                packetSet.add(packet);
-                int q = isInIncomingBuffer(packet.get(0), packet.get(2) & 0xFF);
-                if (packet.get(4) == 2 || packet.get(4) == 10) {
-                    if (q != -1) {
-                        incomingBuffer.get(q).message =
-                                buildMessage(incomingBuffer.get(q).message, packet);
-                        incomingBuffer.get(q).fullMessageArrived = true;
-                    } else {
-                        incomingBuffer.add(new IncomingInfo(getUsername(packet.get(0)),
-                                                            packet.get(0),
-                                                            (packet.get(2) & 0xFF) + 1,
-                                                            "",
-                                                            (packet.get(4) == 10),
-                                                            true));
-                        incomingBuffer.get(incomingBuffer.size() - 1).message =
-                                buildMessage (
-                                        incomingBuffer.get(incomingBuffer.size() - 1).message,
-                                        packet);
-                    }
-                    if(packet.get(4) == 10) {
-                        forwardMessage(q, packet.get(1));
-                    }
-                } else if (packet.get(4) == 0 || packet.get(4) == 8) {
-                    if (q != -1) {
-                        incomingBuffer.get(q).message =
-                                buildMessage(incomingBuffer.get(q).message, packet);
-                        incomingBuffer.get(q).seq++;
-                    } else {
-                        incomingBuffer.add(new IncomingInfo(getUsername(packet.get(0)),
-                                                            packet.get(0),
-                                                            (packet.get(2) & 0xFF) + 1,
-                                                            "",
-                                                            (packet.get(4) == 8),
-                                                            false));
-                        incomingBuffer.get(incomingBuffer.size() - 1).message =
-                                buildMessage (
-                                        incomingBuffer.get(incomingBuffer.size() - 1).message,
-                                        packet);
-                    }
-                }
+            if (packet.get(2) != 0) {
                 ByteBuffer ack = ByteBuffer.allocate(32);
                 int tack = (packet.get(2) & 0xFF);
-                headerBuilder(ack, SRC, packet.get(0), 0, tack, false, false,
+                byte dst = packet.get(0);
+                if(packet.get(4) < 8 && packet.get(3) != (packet.get(0) & 0xFF)) {
+                    dst = packet.get(3);
+                }
+                headerBuilder(ack, SRC, dst, 0, tack, false, false,
                               false, false, 0);
                 Message msg = new Message(MessageType.DATA, ack);
                 sendPacketsHelper(msg);
-            } else if (packet.get(3) != 0 && packet.get(2) == 0) {
+                if (!packetSet.contains(packet)) {
+                    packetSet.add(packet);
+                    int q = isInIncomingBuffer(packet.get(0), packet.get(2) & 0xFF);
+                    if (packet.get(4) == 2 || packet.get(4) == 10) {
+                        if (q != -1) {
+                            incomingBuffer.get(q).message = buildMessage(incomingBuffer.get(q).message, packet);
+                            incomingBuffer.get(q).fullMessageArrived = true;
+                            if (packet.get(4) == 10) {
+                                qq = q;
+                                qdst = packet.get(1);
+                                forwardMessage.start();
+                            }
+                        } else {
+                            incomingBuffer.add(
+                                    new IncomingInfo(getUsername(packet.get(0)), packet.get(0),
+                                                     (packet.get(2) & 0xFF) + 1, "",
+                                                     (packet.get(4) == 10), true));
+                            incomingBuffer.get(incomingBuffer.size() - 1).message =
+                                    buildMessage(incomingBuffer.get(incomingBuffer.size() - 1).message,
+                                                 packet);
+                            q = incomingBuffer.size() - 1;
+                            if (packet.get(4) == 10) {
+                                qq = q;
+                                qdst = packet.get(1);
+                                forwardMessage.start();
+                            }
+                        }
+                    } else if (packet.get(4) == 0 || packet.get(4) == 8) {
+                        if (q != -1) {
+                            incomingBuffer.get(q).message = buildMessage(incomingBuffer.get(q).message, packet);
+                            incomingBuffer.get(q).seq++;
+                        } else {
+                            incomingBuffer.add(
+                                    new IncomingInfo(getUsername(packet.get(0)), packet.get(0),
+                                                     (packet.get(2) & 0xFF) + 1, "",
+                                                     (packet.get(4) == 8), false));
+                            incomingBuffer.get(incomingBuffer.size() - 1).message =
+                                    buildMessage(incomingBuffer.get(incomingBuffer.size() - 1).message,
+                                                 packet);
+                        }
+                    }
+                }
+            } else if (packet.get(2) == 0) {
                 receivedAck = (packet.get(3) & 0xFF);
             }
         }
-        incomingMessages();
+        //incomingMessages();
+        printIncomingBuffer();
     }
 
-    private void forwardMessage(int q, byte dst) throws InterruptedException {
+    private int qq;
+    private byte qdst;
+
+    Thread forwardMessage = new Thread(() -> {
         ByteBuffer forwardedMessage = ByteBuffer.allocate(1024);
-        incomingBuffer.get(q).message = incomingBuffer.get(q).message.substring
-                (0, incomingBuffer.get(q).message.length() - 1);
-        forwardedMessage.put(incomingBuffer.get(q).message.getBytes());
-        byte frw = getNextHopAddress(incomingBuffer.get(q).username);
-        sendPackets(incomingBuffer.get(q).message.length() - 2, forwardedMessage, dst, frw);
+        forwardedMessage.put(incomingBuffer.get(qq).message.getBytes());
+        byte frw = getNextHopAddress(incomingBuffer.get(qq).username);
+        byte src = getAddress(incomingBuffer.get(qq).username);
+        try {
+            sendPackets(incomingBuffer.get(qq).message.length(), forwardedMessage, qdst, frw, src);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    });
+
+    private void forwardMessage(int q, byte dst) throws InterruptedException {
+
     }
 
     private int isInIncomingBuffer(byte address, int seq) {
@@ -477,7 +488,7 @@ public class MyProtocol {
             if (i.fullMessageArrived && !i.toBeForwarded) {
                 i.message = i.message.substring(0, i.message.length() - 1);
                 System.out.println(getCurrentTime() + " " + i.username + ": " + i.message);
-                iterator.remove();
+                // iterator.remove();
             }
         }
     }
