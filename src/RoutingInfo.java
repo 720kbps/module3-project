@@ -1,19 +1,18 @@
 public class RoutingInfo {
     private String username;
-    private int destination;
+    private int source;
     private int nextHop;
 
 
-    public RoutingInfo(int destination, int nextHop, String username) {
-        this.destination = destination;
+    public RoutingInfo(int source, int nextHop, String username) {
+        this.source = source;
         this.nextHop = nextHop;
         this.username = username;
     }
 
-    public int getDestination() {
-        return destination;
+    public int getSource() {
+        return source;
     }
-
     public int getNextHop() {
         return nextHop;
     }

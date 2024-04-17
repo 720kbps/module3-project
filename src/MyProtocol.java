@@ -3,6 +3,7 @@ import client.*;
 import java.nio.ByteBuffer;
 import java.io.IOException;
 import java.util.Random;
+import java.util.Scanner;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -12,7 +13,7 @@ import java.time.format.DateTimeFormatter;
 public class MyProtocol {
     private static String SERVER_IP = "netsys.ewi.utwente.nl";
     private static int SERVER_PORT = 8954;
-    private static int frequency = 5800;
+    private static int frequency = 5801;
     String token = "java-53-ME854K6ZFTSIXDHC2V";
 
     private boolean freeLink = true;
@@ -68,6 +69,32 @@ public class MyProtocol {
         }
 
         public void run() {
+            System.out.println("/list - displays all reachable nodes\n" +
+                                       "/whisper <recipient_username> <message> - sends a message to a specific person\n" +
+                                       "/leave - leaves the network\n" +
+                                       "/help - displays all available commands\n");
+            Scanner input = new Scanner(System.in);
+            String command = input.nextLine();
+            switch (command){
+                case "/list":
+                    //TODO: show routing table
+                    break;
+                case "/whisper":
+                    //TODO: send message to specific user
+                    break;
+                case "/leave":
+                    //TODO: leave the network
+                    break;
+                case "/help":
+                    System.out.println("/list - displays all reachable nodes" +
+                                               "/whisper <recipient_username> <message> - sends a message to a specific person" +
+                                               "/leave - leaves the network" +
+                                               "/help - displays all available commands\n");
+                    break;
+                default:
+                    System.out.println("Invalid command");
+                    break;
+            }
             while (true) {
                 try {
                     Message m = receivedQueue.take();
