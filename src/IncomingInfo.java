@@ -1,4 +1,5 @@
 public class IncomingInfo {
+    public String timeRecieved;
     public String username;
     public byte address;
     public int seq;
