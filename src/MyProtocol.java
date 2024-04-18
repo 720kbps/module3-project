@@ -15,7 +15,7 @@ public class MyProtocol {
     private static int frequency = 5800;
     String token = "java-53-ME854K6ZFTSIXDHC2V";
 
-    // Source address from 0 to 254
+    // Source address from 1 to 254
     // Source address 255 or byte -1 is used for broadcast to all nodes (neighboring)
     private static final byte SRC = (byte) (1 + new Random().nextInt(254));
     private static String srcUsername = ""; // Username of the source from above
@@ -49,22 +49,36 @@ public class MyProtocol {
         Thread.sleep(1000); // wait 1 second for framework
         chatInit();
         mainChat();
-
     }
 
+    /**
+     * Initializes the chat by prompting the user to enter a username,
+     * validating it, and displaying available commands.
+     */
     private void chatInit() {
+        // Print chat initiation message
         System.out.println("⁶\uD80C\uDD53 ~ ");
         System.out.println("Your source address is: " + SRC + "\nChoose a username please");
+
+        // Input username
         Scanner scanner = new Scanner(System.in);
         System.out.print("Enter username: ");
         String username = scanner.nextLine();
+
+        // Validate username
         while (!isValidUsername(username)) {
             System.out.print("Invalid username(>25)\nEnter new username: ");
             username = scanner.nextLine();
         }
         srcUsername = username;
+
+        // Add routing info for the source user
         routingTable.add(new RoutingInfo(srcUsername, SRC, SRC));
+
+        // Initialize routing message
         initRoutingMessage();
+
+        // Print available commands
         System.out.println("\nCommands:\n\nlist        shows the list of active users\n" +
                                    "message     opens the message menu\n" +
                                    "inbox       opens your inbox\n" +
@@ -72,65 +86,142 @@ public class MyProtocol {
                                    "help        to see the messages above\n");
     }
 
+    /**
+     * Checks if a username is valid.
+     *
+     * @param username The username to be validated.
+     * @return True if the username is valid, false otherwise.
+     */
+    private boolean isValidUsername(String username) {
+        return username.length() <= 25;
+    }
 
-    private boolean isValidUsername(String username) { return username.length() <= 25; }
-
+    /**
+     * Runs the main chat loop, processing user commands until the user decides to quit.
+     */
     private void mainChat() {
         while (true) {
             System.out.print("Enter command: ");
             Scanner scanner = new Scanner(System.in);
             String command = scanner.nextLine();
-            if (Objects.equals(command, "list")) {
-                System.out.println("\nOnline users:");
-                for (RoutingInfo r : routingTable) { System.out.print(r.username + " "); }
-                if (routingTable.size() == 1) { System.out.println(" - You are alone :("); }
-                printRoutingTable();
-                System.out.println("\n");
-            } else if (Objects.equals(command, "message")) {
-                System.out.print("\nTo: ");
-                String username = scanner.nextLine();
-                byte dst = getAddress(username);
-                while (dst == -1 || Objects.equals(username, srcUsername)) {
-                    System.out.println("\nUsername not found, try again");
-                    if (Objects.equals(username, srcUsername)) {
-                        System.out.println("Are you trying to send messages to yourself?");
-                    }
-                    System.out.print("\nTo: ");
-                    username = scanner.nextLine();
-                    dst = getAddress(username);
-                }
-                byte nextHop = getNextHopAddress(username);
-                System.out.println(nextHop);
-                System.out.println("Message:\n");
-                sending = true;
-                try {
-                    ByteBuffer temp = ByteBuffer.allocate(1024);
-                    int read;
-                    read = System.in.read(temp.array());
-                    if (read < 1024) { sendPackets(read, temp, dst, nextHop, SRC); }
-                    else { System.out.println("Character limit 1024 exceeded"); }
-                } catch (InterruptedException | IOException e) { System.exit(2); }
-                sending = false;
-            } else if (Objects.equals(command, "inbox")) {
-                System.out.println("\nInbox: ");
-                incomingMessages();
-                System.out.println();
-            } else if (Objects.equals(command, "help")) {
-                System.out.println("\nCommands:\n\nlist        shows the list of active users\n" +
-                                                "message     opens the message menu\n" +
-                                                "inbox       opens your inbox\n" +
-                                                "quit        closes the chat\n" +
-                                                "help        to see the messages above\n");
-            } else if (Objects.equals(command, "quit")) { break; }
-            else { System.out.println("Unknown command"); }
+
+            // Process user command
+            switch (command) {
+                case "list":
+                    listUsers();
+                    break;
+                case "message":
+                    sendMessage();
+                    break;
+                case "inbox":
+                    checkInbox();
+                    break;
+                case "help":
+                    displayHelp();
+                    break;
+                case "quit":
+                    endChat();
+                    return;
+                default:
+                    System.out.println("Unknown command");
+            }
         }
+    }
+
+    /**
+     * Displays the list of online users.
+     */
+    private void listUsers() {
+        System.out.println("\nOnline users:");
+        for (RoutingInfo r : routingTable) {
+            System.out.print(r.username + " ");
+        }
+        if (routingTable.size() == 1) {
+            System.out.println(" - You are alone :(");
+        }
+        System.out.println("\n");
+    }
+
+    /**
+     * Sends a message to another user.
+     */
+    private void sendMessage() {
+        System.out.print("\nTo: ");
+        Scanner scanner = new Scanner(System.in);
+        String username = scanner.nextLine();
+        byte dst = getAddress(username);
+
+        // Validate recipient username
+        while (dst == -1 || Objects.equals(username, srcUsername)) {
+            System.out.println("\nUsername not found, try again");
+            if (Objects.equals(username, srcUsername)) {
+                System.out.println("Are you trying to send messages to yourself?");
+            }
+            System.out.print("\nTo: ");
+            username = scanner.nextLine();
+            dst = getAddress(username);
+        }
+
+        byte nextHop = getNextHopAddress(username);
+        System.out.println(nextHop);
+        System.out.println("Message:\n");
+        sending = true;
+        try {
+            ByteBuffer temp = ByteBuffer.allocate(1024);
+            int read;
+            read = System.in.read(temp.array());
+            if (read < 1024) {
+                sendPackets(read, temp, dst, nextHop, SRC);
+            } else {
+                System.out.println("Character limit 1024 exceeded");
+            }
+        } catch (InterruptedException | IOException e) {
+            System.exit(2);
+        }
+        sending = false;
+    }
+
+    /**
+     * Checks the user's inbox for incoming messages.
+     */
+    private void checkInbox() {
+        System.out.println("\nInbox: ");
+        incomingMessages();
+        System.out.println();
+    }
+
+    /**
+     * Displays help information about available commands.
+     */
+    private void displayHelp() {
+        System.out.println("\nCommands:\n\nlist        shows the list of active users\n" +
+                                   "message     opens the message menu\n" +
+                                   "inbox       opens your inbox\n" +
+                                   "quit        closes the chat\n" +
+                                   "help        to see the messages above\n");
+    }
+
+    /**
+     * Ends the chat session.
+     */
+    private void endChat() {
         System.out.println("Chat closed.");
         System.exit(0);
     }
 
+    /**
+     * Retrieves the current time in the format [HH:mm:ss].
+     *
+     * @return The current time formatted as [HH:mm:ss].
+     */
     private static String getCurrentTime() {
+        // Get current time
         LocalTime currentTime = LocalTime.now();
+
+        // Define formatter for the time
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("[HH:mm:ss]");
+
+        // Format the current time and return
         return currentTime.format(formatter);
     }
 
@@ -182,20 +273,37 @@ public class MyProtocol {
         }
     }
 
+    /**
+     * Sends packets containing the message to be transmitted.
+     *
+     * @param read The number of bytes read from the input.
+     * @param temp The ByteBuffer containing the message to be sent.
+     * @param dst  The destination address of the message.
+     * @param frw  The forward address of the message.
+     * @param src  The source address of the message.
+     * @throws InterruptedException if the sending process is interrupted.
+     */
     private void sendPackets(int read, ByteBuffer temp, byte dst, byte frw, byte src)
             throws InterruptedException {
         System.out.println();
-        int new_line_offset = 0;
+
+        // Initialize new line offset
+        int newLineOffset = 0;
+
         if (read > 0) {
+            // Adjust new line offset
             if (temp.get(read - 1) == '\n' || temp.get(read - 1) == '\r') {
-                new_line_offset = 1;
+                newLineOffset = 1;
             }
             if (read > 1 && (temp.get(read - 2) == '\n' || temp.get(read - 2) == '\r')) {
-                new_line_offset = 2;
+                newLineOffset = 2;
             }
+
             Message msg;
             int position = 0;
             int seq = 1 + new Random().nextInt(200);
+
+            // Send packets in chunks of 26 bytes
             while (read > 26) {
                 sentSeq = seq;
                 seq++;
@@ -205,29 +313,37 @@ public class MyProtocol {
                 toSend.put(temp.array(), position, 26);
                 msg = new Message(MessageType.DATA, toSend);
                 stopAndWaitSend(msg);
-                if (failedToSend) { break; }
+                if (failedToSend) {
+                    break;
+                }
                 position += 26;
                 read -= 26;
             }
-            if(!failedToSend) {
+
+            // Send remaining bytes
+            if (!failedToSend) {
                 sentSeq = seq;
                 seq++;
                 ByteBuffer toSend = ByteBuffer.allocate(32);
                 headerBuilder(toSend, src, dst, seq, frw, (frw != SRC), true, false, false, read);
-                toSend.put(temp.array(), position, read - new_line_offset);
+                toSend.put(temp.array(), position, read - newLineOffset);
                 msg = new Message(MessageType.DATA, toSend);
                 stopAndWaitSend(msg);
                 sentSeq = seq;
             }
+
+            // Reset failure flag
             failedToSend = false;
         }
     }
+
+    // TODO: Timeout adjustments
 
     private void stopAndWaitSend(Message msg) throws InterruptedException {
         int delay = 3000;
         // int totalTimeOut = 0;
         while (true) {
-            // if (totalTimeOut == 30000) {
+//            if (totalTimeOut == 30000) {
 //                failedToSend = true;
 //                break;
 //            }
@@ -243,62 +359,114 @@ public class MyProtocol {
         }
     }
 
+    /**
+     * Builds the header for the packet.
+     *
+     * @param packet      The ByteBuffer representing the packet.
+     * @param source      The source address of the packet.
+     * @param destination The destination address of the packet.
+     * @param seq         The sequence number of the packet.
+     * @param ack         The acknowledgment number of the packet.
+     * @param FRW         Flag indicating forward status.
+     * @param FIN         Flag indicating end of transmission.
+     * @param RMS         Flag indicating retransmission request.
+     * @param INIT        Flag indicating initialization.
+     * @param length      The length of the packet payload.
+     */
     private void headerBuilder(ByteBuffer packet, byte source, byte destination, int seq, int ack,
-                              boolean FRW, boolean FIN, boolean RMS, boolean INIT,
-                              int length) {
-        packet.put(source);
-        packet.put(destination);
-        packet.put((byte) seq);
-        packet.put((byte) ack);
+                               boolean FRW, boolean FIN, boolean RMS, boolean INIT,
+                               int length) {
+        packet.put(source); // Put source address
+        packet.put(destination); // Put destination address
+        packet.put((byte) seq); // Put sequence number
+        packet.put((byte) ack); // Put acknowledgment number
         packet.put((byte) ((0) | (FRW ? 0b1000 : 0) | (INIT ? 0b100 : 0) | (FIN ? 0b10 : 0) |
-                (RMS ? 0b01 : 0)));
-        packet.put((byte) length);
+                (RMS ? 0b01 : 0))); // Put flags
+        packet.put((byte) length); // Put length
     }
 
+    /**
+     * Sends packets with collision avoidance mechanism.
+     *
+     * @param msg The message to be sent.
+     * @throws InterruptedException if the sending process is interrupted.
+     */
     private void sendPacketsHelper(Message msg) throws InterruptedException {
-        // CA (collision avoidance) implementation
+        // Collision avoidance (CA) implementation
         while (true) {
             if (freeLink) {
-                sendingQueue.put(msg);
+                sendingQueue.put(msg); // Put message in the sending queue
                 try {
                     Thread.sleep(new Random().nextInt(200) + 500); // Random back off
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
-                catch (InterruptedException e) { e.printStackTrace(); }
-                break;
+                break; // Exit loop after successful send
             }
             try {
-                Thread.sleep(200); // Time slots of 1 second
+                Thread.sleep(200); // Wait for 200 milliseconds (time slots of 1 second)
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-            catch (InterruptedException e) { e.printStackTrace(); }
         }
     }
 
-    /* ROUTING */
-
+    /**
+     * Initializes the routing messages for each user in the routing table.
+     */
     private void initRoutingMessage() {
+        // Create a copy of the routing table to avoid concurrent modification
         List<RoutingInfo> copyOfRoutingTable = new ArrayList<>(routingTable);
+
+        // Iterate through each routing info in the copy of the routing table
         for (RoutingInfo r : copyOfRoutingTable) {
+            // Create a ByteBuffer for the routing message
             ByteBuffer routingMessage = ByteBuffer.allocate(32);
+
+            // Build the header for the routing message
             headerBuilder(routingMessage, r.address, (byte) 255, 0, 0,
                           false, false, true, r.address == r.nextHopAddress,
                           r.username.length());
-            for (char c : r.username.toCharArray()) { routingMessage.put((byte) c); }
-            if (r.address != SRC) { routingMessage.put(SRC); }
+
+            // Put the username into the routing message ByteBuffer
+            for (char c : r.username.toCharArray()) {
+                routingMessage.put((byte) c);
+            }
+
+            // If the destination address is not the source address, put the source address in the routing message
+            if (r.address != SRC) {
+                routingMessage.put(SRC);
+            }
+
+            // Create a Message object with the routing message ByteBuffer and send it
             Message m = new Message(MessageType.DATA, routingMessage);
-            try { sendPacketsHelper(m); }
-            catch (InterruptedException e) { e.printStackTrace(); }
+            try {
+                sendPacketsHelper(m);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 
+    /**
+     * Thread responsible for sending routing messages periodically.
+     */
     Thread routingMessage = new Thread(() -> {
         while (true) {
-            if (!Objects.equals(srcUsername, "") && !sending) { initRoutingMessage(); }
+            // Check if source username is set and no message sending is ongoing
+            if (!Objects.equals(srcUsername, "") && !sending) {
+                initRoutingMessage(); // Initialize routing message
+            }
             try {
-                Thread.sleep(7000);
-                Thread.sleep(new Random().nextInt(5000));
-            } catch (InterruptedException e) { e.printStackTrace(); }
+                Thread.sleep(7000); // Sleep for 7 seconds
+                Thread.sleep(new Random().nextInt(5000)); // Random additional sleep
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     });
+
+    // TODO: Decide on the sleeptime for the full implementation
 
     Thread clearRoutingTable = new Thread(() -> {
         while (true) {
@@ -309,151 +477,238 @@ public class MyProtocol {
         }
     });
 
+    /**
+     * Checks if a given address is present in the routing table.
+     *
+     * @param address The address to check.
+     * @return True if the address is found in the routing table, false otherwise.
+     */
     private boolean isInRoutingTable(byte address) {
+        // Iterate through each RoutingInfo in the routing table
         for (RoutingInfo r : routingTable) {
-            if (r.address == address) { return true; }
+            // Check if the address matches the current RoutingInfo's address
+            if (r.address == address) {
+                return true; // Address found, return true
+            }
         }
-        return false;
+        return false; // Address not found in the routing table, return false
     }
 
+    /**
+     * Updates the routing table based on the received routing message.
+     *
+     * @param packet The ByteBuffer containing the routing message.
+     */
     private void routingUpdate(ByteBuffer packet) {
+        // Create a new ByteBuffer for the routing message
         ByteBuffer routingMessage = ByteBuffer.allocate(32);
+
+        // Initialize username
         String username = "";
+
+        // Iterate through the packet content
         for (int i = 0; i < 6 + (int) packet.get(5); i++) {
-            if (i > 5) { username += (char) packet.get(i); }
-            if (i == 4) { routingMessage.put((byte) 1); }
-            else { routingMessage.put(packet.get(i)); }
+            // Append characters after the fifth index to the username
+            if (i > 5) {
+                username += (char) packet.get(i);
+            }
+
+            // Copy packet content to the routing message ByteBuffer
+            if (i == 4) {
+                routingMessage.put((byte) 1);
+            } else {
+                routingMessage.put(packet.get(i));
+            }
         }
+
+        // Handle routing update based on packet type
         if (packet.get(4) == 5 && !isInRoutingTable(packet.get(0))) {
+            // Add new entry to routing table for direct connection
             routingTable.add(new RoutingInfo(username, packet.get(0), SRC));
             routingMessage.put(SRC);
             Message msg = new Message(MessageType.DATA, routingMessage);
-            try { sendPacketsHelper(msg); }
-            catch (InterruptedException e) { e.printStackTrace(); }
+            try {
+                sendPacketsHelper(msg);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         } else if (packet.get(4) == 1 && !isInRoutingTable(packet.get(0))) {
+            // Add new entry to routing table for indirect connection
             int ss = (int) packet.get(5) + 6;
             routingTable.add(new RoutingInfo(username, packet.get(0), packet.get(ss)));
             Message msg = new Message(MessageType.DATA, packet);
-            try { sendPacketsHelper(msg); }
-            catch (InterruptedException e) { e.printStackTrace(); }
+            try {
+                sendPacketsHelper(msg);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 
+    /**
+     * Retrieves the username associated with the given address from the routing table.
+     *
+     * @param address The address for which to retrieve the username.
+     * @return The username associated with the address, or "Unknown" if not found.
+     */
     private String getUsername(byte address) {
         for (RoutingInfo r : routingTable) {
-            if (r.address == address) { return r.username; }
+            if (r.address == address) {
+                return r.username;
+            }
         }
         return "Unknown";
     }
 
-
+    /**
+     * Retrieves the address associated with the given username from the routing table.
+     *
+     * @param username The username for which to retrieve the address.
+     * @return The address associated with the username, or 255 if not found.
+     */
     private byte getAddress(String username) {
         for (RoutingInfo r : routingTable) {
-            if (Objects.equals(r.username, username)) { return r.address; }
+            if (Objects.equals(r.username, username)) {
+                return r.address;
+            }
         }
         return (byte) 255;
     }
 
+    /**
+     * Retrieves the next hop address associated with the given username from the routing table.
+     *
+     * @param username The username for which to retrieve the next hop address.
+     * @return The next hop address associated with the username, or 255 if not found.
+     */
     private byte getNextHopAddress(String username) {
         for (RoutingInfo r : routingTable) {
-            if (Objects.equals(r.username, username)) { return r.nextHopAddress; }
+            if (Objects.equals(r.username, username)) {
+                return r.nextHopAddress;
+            }
         }
         return (byte) 255;
     }
 
+    /**
+     * Receives and processes incoming packets.
+     *
+     * @param packet The ByteBuffer containing the received packet.
+     * @throws InterruptedException if the process is interrupted.
+     */
     private void receivePackets(ByteBuffer packet) throws InterruptedException {
+        // Check if the packet is from or destined to the current node
         if (packet.get(1) == SRC || packet.get(3) == SRC) {
+            // Check if the packet is not an acknowledgment packet
             if (packet.get(2) != 0) {
                 ByteBuffer ack = ByteBuffer.allocate(32);
                 int tack = (packet.get(2) & 0xFF);
                 byte dst = packet.get(0);
+
+                // Adjust destination if needed
                 if(packet.get(4) < 8 && packet.get(3) != (packet.get(0) & 0xFF)) {
                     dst = packet.get(3);
                 }
-                headerBuilder(ack, SRC, dst, 0, tack, false, false,
-                              false, false, 0);
+
+                // Build acknowledgment packet header
+                headerBuilder(ack, SRC, dst, 0, tack, false, false, false, false, 0);
                 Message msg = new Message(MessageType.DATA, ack);
                 sendPacketsHelper(msg);
+
+                // Process incoming message
                 if (!packetSet.contains(packet)) {
                     packetSet.add(packet);
                     int q = isInIncomingBuffer(packet.get(0), packet.get(2) & 0xFF);
+
+                    // Process special message types
                     if (packet.get(4) == 2 || packet.get(4) == 10) {
                         if (q != -1) {
-                            incomingBuffer.get(q).message = buildMessage (
-                                    incomingBuffer.get(q).message, packet);
+                            // Update existing incoming message
+                            incomingBuffer.get(q).message = buildMessage(incomingBuffer.get(q).message, packet);
                             incomingBuffer.get(q).fullMessageArrived = true;
                             incomingBuffer.get(q).timeRecieved = getCurrentTime();
+
+                            // Handle special message type 10
                             if (packet.get(4) == 10) {
                                 qq = q;
                                 qdst = packet.get(1);
-                                if (!forwardMessage.isAlive()) { // Check if the thread is not alive
-                                    forwardMessage.start(); // Start the thread
+                                if (!forwardMessage.isAlive()) {
+                                    forwardMessage.start();
                                 }
                             }
                         } else {
-                            incomingBuffer.add(
-                                    new IncomingInfo(getUsername( packet.get(0)),
-                                                     packet.get(0),
-                                                     (packet.get(2) & 0xFF) + 1,
-                                                     "",
-                                                     (packet.get(4) == 10),
-                                                     true));
-                            incomingBuffer.get(incomingBuffer.size() - 1).message =
-                                    buildMessage (
-                                            incomingBuffer.get(incomingBuffer.size() - 1).message,
-                                                 packet);
-                            incomingBuffer.get(incomingBuffer.size() - 1).timeRecieved =
-                                    getCurrentTime();
+                            // Add new incoming message
+                            incomingBuffer.add(new IncomingInfo(getUsername(packet.get(0)),
+                                                                packet.get(0), (packet.get(2) & 0xFF) + 1, "",
+                                                                (packet.get(4) == 10), true));
+                            incomingBuffer.get(incomingBuffer.size() - 1).message = buildMessage(
+                                    incomingBuffer.get(incomingBuffer.size() - 1).message, packet);
+                            incomingBuffer.get(incomingBuffer.size() - 1).timeRecieved = getCurrentTime();
                             q = incomingBuffer.size() - 1;
                             if (packet.get(4) == 10) {
                                 qq = q;
                                 qdst = packet.get(1);
-                                if (!forwardMessage.isAlive()) { // Check if the thread is not alive
-                                    forwardMessage.start(); // Start the thread
+                                if (!forwardMessage.isAlive()) {
+                                    forwardMessage.start();
                                 }
                             }
                         }
                         sending = false;
                     } else if (packet.get(4) == 0 || packet.get(4) == 8) {
+                        // Process regular data packets
                         sending = true;
                         if (q != -1) {
-                            incomingBuffer.get(q).message = buildMessage (
-                                    incomingBuffer.get(q).message, packet);
+                            incomingBuffer.get(q).message = buildMessage(incomingBuffer.get(q).message, packet);
                             incomingBuffer.get(q).seq++;
                         } else {
-                            incomingBuffer.add(
-                                    new IncomingInfo(getUsername(packet.get(0)),
-                                                     packet.get(0),
-                                                     (packet.get(2) & 0xFF) + 1,
-                                                     "",
-                                                     (packet.get(4) == 8),
-                                                     false));
-                            incomingBuffer.get(incomingBuffer.size() - 1).message =
-                                    buildMessage (
-                                            incomingBuffer.get(incomingBuffer.size() - 1).message,
-                                                 packet);
+                            incomingBuffer.add(new IncomingInfo(getUsername(packet.get(0)),
+                                                                packet.get(0), (packet.get(2) & 0xFF) + 1, "",
+                                                                (packet.get(4) == 8), false));
+                            incomingBuffer.get(incomingBuffer.size() - 1).message = buildMessage(
+                                    incomingBuffer.get(incomingBuffer.size() - 1).message, packet);
                         }
                     }
                 }
-            } else  { receivedAck = (packet.get(3) & 0xFF); }
+            } else {
+                receivedAck = (packet.get(3) & 0xFF);
+            }
         }
     }
 
+    // Variables to store information about the message to be forwarded
     private int qq;
     private byte qdst;
 
+    /**
+     * Thread responsible for forwarding a message to its next hop.
+     */
     Thread forwardMessage = new Thread(() -> {
+        // Create a ByteBuffer to hold the forwarded message
         ByteBuffer forwardedMessage = ByteBuffer.allocate(1024);
+
+        // Copy the message to the ByteBuffer
         forwardedMessage.put(incomingBuffer.get(qq).message.getBytes());
+
+        // Retrieve the next hop address and source address for forwarding
         byte frw = getNextHopAddress(incomingBuffer.get(qq).username);
         byte src = getAddress(incomingBuffer.get(qq).username);
+
+        // Send the message to the next hop
         try {
             sendPackets(incomingBuffer.get(qq).message.length(), forwardedMessage, qdst, frw, src);
         } catch (InterruptedException e) {
+            // Convert InterruptedException to RuntimeException
             throw new RuntimeException(e);
         }
     });
 
+    /**
+     * Checks if a message with the given address and sequence number is in the incoming buffer.
+     *
+     * @param address The address of the message.
+     * @param seq     The sequence number of the message.
+     * @return The index of the message in the buffer, or -1 if not found.
+     */
     private int isInIncomingBuffer(byte address, int seq) {
         for (int i = 0; i < incomingBuffer.size(); i++) {
             if (incomingBuffer.get(i).address == address && incomingBuffer.get(i).seq == seq) {
@@ -463,37 +718,64 @@ public class MyProtocol {
         return -1;
     }
 
+    /**
+     * Processes incoming messages in the inbox.
+     */
     private void incomingMessages() {
         System.out.println();
-        if (incomingBuffer.size() == 0) { System.out.println("Inbox empty"); }
+        if (incomingBuffer.isEmpty()) {
+            System.out.println("Inbox empty");
+        }
         Iterator<IncomingInfo> iterator = incomingBuffer.iterator();
         while (iterator.hasNext()) {
             IncomingInfo i = iterator.next();
             if (i.fullMessageArrived && !i.toBeForwarded) {
+                // Trim the last character of the message
                 i.message = i.message.substring(0, i.message.length() - 1);
                 System.out.println(i.timeRecieved + " " + i.username + ": " + i.message);
-                iterator.remove();
+                iterator.remove(); // Remove the processed message from the buffer
             }
         }
     }
 
+    /**
+     * Builds the message by appending characters from the packet.
+     *
+     * @param message The current message content.
+     * @param packet  The ByteBuffer containing the packet.
+     * @return The updated message after appending characters from the packet.
+     */
     private String buildMessage(String message, ByteBuffer packet) {
+        // Create a StringBuilder to manipulate the message
         StringBuilder messageBuilder = new StringBuilder(message);
+
+        // Append characters from the packet to the message
         for (int i = 6; i < 6 + packet.get(5); i++) {
             messageBuilder.append((char) packet.get(i));
         }
-        message = messageBuilder.toString();
-        return message;
+
+        // Convert StringBuilder back to String and return
+        return messageBuilder.toString();
     }
 
     /* DEBUGGING TOOLS */
 
+    /**
+     * Prints the content of a ByteBuffer.
+     *
+     * @param bytes       The ByteBuffer to print.
+     * @param bytesLength The length of the ByteBuffer.
+     */
     private void printByteBuffer(ByteBuffer bytes, int bytesLength) {
         System.out.print("[" + getCurrentTime() + "] ");
+
+        // Print the first 6 bytes as integers
         for (int j = 0; j < 6; j++) {
             byte charByte = bytes.get(j);
             System.out.print((int) charByte + " ");
         }
+
+        // Print the rest of the bytes as characters
         for (int i = 6; i < bytesLength; i++) {
             byte charByte = bytes.get(i);
             System.out.print((char) charByte + "");
@@ -501,6 +783,9 @@ public class MyProtocol {
         System.out.println();
     }
 
+    /**
+     * Prints the content of the incoming message buffer.
+     */
     private void printIncomingBuffer() {
         for (IncomingInfo i : incomingBuffer) {
             System.out.print(i.username + " ");
@@ -513,6 +798,9 @@ public class MyProtocol {
         System.out.println();
     }
 
+    /**
+     * Prints the content of the routing table.
+     */
     private void printRoutingTable() {
         for (RoutingInfo r : routingTable) {
             System.out.print(r.username + " ");
