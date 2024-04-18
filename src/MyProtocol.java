@@ -21,6 +21,8 @@ public class MyProtocol {
     private static String srcUsername = ""; // Username of the source from above
     private boolean freeLink = true; // Keeps the link state ~ for CA
 
+    private boolean sending = false;
+
     private Set<ByteBuffer> packetSet = new HashSet<>();
     private List<RoutingInfo> routingTable = new ArrayList<>();
     private List<IncomingInfo> incomingBuffer = new ArrayList<>();
@@ -100,6 +102,7 @@ public class MyProtocol {
                 byte nextHop = getNextHopAddress(username);
                 System.out.println(nextHop);
                 System.out.println("Message:\n");
+                sending = true;
                 try {
                     ByteBuffer temp = ByteBuffer.allocate(1024);
                     int read;
@@ -107,6 +110,7 @@ public class MyProtocol {
                     if (read < 1024) { sendPackets(read, temp, dst, nextHop, SRC); }
                     else { System.out.println("Character limit 1024 exceeded"); }
                 } catch (InterruptedException | IOException e) { System.exit(2); }
+                sending = false;
             } else if (Objects.equals(command, "inbox")) {
                 System.out.println("\nInbox: ");
                 incomingMessages();
@@ -263,7 +267,7 @@ public class MyProtocol {
                 break;
             }
             try {
-                Thread.sleep(1000); // Time slots of 1 second
+                Thread.sleep(200); // Time slots of 1 second
             }
             catch (InterruptedException e) { e.printStackTrace(); }
         }
@@ -288,7 +292,7 @@ public class MyProtocol {
 
     Thread routingMessage = new Thread(() -> {
         while (true) {
-            if (!Objects.equals(srcUsername, "")) { initRoutingMessage(); }
+            if (!Objects.equals(srcUsername, "") && !sending) { initRoutingMessage(); }
             try {
                 Thread.sleep(7000);
                 Thread.sleep(new Random().nextInt(5000));
@@ -382,7 +386,9 @@ public class MyProtocol {
                             if (packet.get(4) == 10) {
                                 qq = q;
                                 qdst = packet.get(1);
-                                forwardMessage.start();
+                                if (!forwardMessage.isAlive()) { // Check if the thread is not alive
+                                    forwardMessage.start(); // Start the thread
+                                }
                             }
                         } else {
                             incomingBuffer.add(
@@ -402,10 +408,14 @@ public class MyProtocol {
                             if (packet.get(4) == 10) {
                                 qq = q;
                                 qdst = packet.get(1);
-                                forwardMessage.start();
+                                if (!forwardMessage.isAlive()) { // Check if the thread is not alive
+                                    forwardMessage.start(); // Start the thread
+                                }
                             }
                         }
+                        sending = false;
                     } else if (packet.get(4) == 0 || packet.get(4) == 8) {
+                        sending = true;
                         if (q != -1) {
                             incomingBuffer.get(q).message = buildMessage (
                                     incomingBuffer.get(q).message, packet);
