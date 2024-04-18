@@ -272,33 +272,17 @@ public class MyProtocol {
     /* ROUTING */
 
     private void initRoutingMessage() {
-        ByteBuffer routingMessage = ByteBuffer.allocate(32);
-        headerBuilder(routingMessage, SRC, (byte) 255, 0, 0, false, false,
-                      true, true,
-                      srcUsername.length());
-        for (char c : srcUsername.toCharArray()) {
-            routingMessage.put((byte) c);
-        }
-        Message msg = new Message(MessageType.DATA, routingMessage);
-        try { sendPacketsHelper(msg); }
-        catch (InterruptedException e) { e.printStackTrace(); }
-        if(routingTable.size() > 1) {
-            List<RoutingInfo> copyOfRoutingTable = new ArrayList<>(routingTable);
-            for (RoutingInfo r : copyOfRoutingTable) {
-                ByteBuffer altroutingMessage = ByteBuffer.allocate(32);
-                if (r.address != SRC) {
-                    headerBuilder(altroutingMessage, r.address, (byte) 255, 0, 0,
-                                  false, false, true, false,
-                                  r.username.length());
-                    for (char c : r.username.toCharArray()) {
-                        altroutingMessage.put((byte) c);
-                    }
-                    altroutingMessage.put(SRC);
-                    Message m = new Message(MessageType.DATA, altroutingMessage);
-                    try { sendPacketsHelper(m); }
-                    catch (InterruptedException e) { e.printStackTrace(); }
-                }
-            }
+        List<RoutingInfo> copyOfRoutingTable = new ArrayList<>(routingTable);
+        for (RoutingInfo r : copyOfRoutingTable) {
+            ByteBuffer routingMessage = ByteBuffer.allocate(32);
+            headerBuilder(routingMessage, r.address, (byte) 255, 0, 0,
+                          false, false, true, r.address == r.nextHopAddress,
+                          r.username.length());
+            for (char c : r.username.toCharArray()) { routingMessage.put((byte) c); }
+            if (r.address != SRC) { routingMessage.put(SRC); }
+            Message m = new Message(MessageType.DATA, routingMessage);
+            try { sendPacketsHelper(m); }
+            catch (InterruptedException e) { e.printStackTrace(); }
         }
     }
 
