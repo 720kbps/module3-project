@@ -42,7 +42,7 @@ public class MyProtocol {
         new receiveThread(receivedQueue).start();
 
         routingMessage.start();
-        clearRoutingTable.start();
+        // clearRoutingTable.start();
 
         Thread.sleep(1000); // wait 1 second for framework
         chatInit();
@@ -82,7 +82,8 @@ public class MyProtocol {
                 System.out.println("\nOnline users:");
                 for (RoutingInfo r : routingTable) { System.out.print(r.username + " "); }
                 if (routingTable.size() == 1) { System.out.println(" - You are alone :("); }
-                System.out.println();
+                printRoutingTable();
+                System.out.println("\n");
             } else if (Objects.equals(command, "message")) {
                 System.out.print("\nTo: ");
                 String username = scanner.nextLine();
@@ -220,12 +221,12 @@ public class MyProtocol {
 
     private void stopAndWaitSend(Message msg) throws InterruptedException {
         int delay = 3000;
-        int totalTimeOut = 0;
+        // int totalTimeOut = 0;
         while (true) {
-            if (totalTimeOut == 30000) {
-                failedToSend = true;
-                break;
-            }
+            // if (totalTimeOut == 30000) {
+//                failedToSend = true;
+//                break;
+//            }
             if (delay == 3000) {
                 delay = 0;
                 sendPacketsHelper(msg);
@@ -234,7 +235,7 @@ public class MyProtocol {
             try { Thread.sleep(100); }
             catch (InterruptedException e) { e.printStackTrace(); }
             delay += 100;
-            totalTimeOut += 100;
+            // totalTimeOut += 100;
         }
     }
 
@@ -271,22 +272,26 @@ public class MyProtocol {
     /* ROUTING */
 
     private void initRoutingMessage() {
-        ByteBuffer routingMessage = ByteBuffer.allocate(32);
-        headerBuilder(routingMessage, SRC, (byte) 255, 0, 0,
-                      false, false, true, true, srcUsername.length());
-        for (char c : srcUsername.toCharArray()) { routingMessage.put((byte) c); }
-        Message msg = new Message(MessageType.DATA, routingMessage);
-        try { sendPacketsHelper(msg); }
-        catch (InterruptedException e) { e.printStackTrace(); }
+        List<RoutingInfo> copyOfRoutingTable = new ArrayList<>(routingTable);
+        for (RoutingInfo r : copyOfRoutingTable) {
+            ByteBuffer routingMessage = ByteBuffer.allocate(32);
+            headerBuilder(routingMessage, r.address, (byte) 255, 0, 0,
+                          false, false, true, r.address == r.nextHopAddress,
+                          r.username.length());
+            for (char c : r.username.toCharArray()) { routingMessage.put((byte) c); }
+            if (r.address != SRC) { routingMessage.put(SRC); }
+            Message m = new Message(MessageType.DATA, routingMessage);
+            try { sendPacketsHelper(m); }
+            catch (InterruptedException e) { e.printStackTrace(); }
+        }
     }
 
     Thread routingMessage = new Thread(() -> {
         while (true) {
             if (!Objects.equals(srcUsername, "")) { initRoutingMessage(); }
-            // wait 4 + random < 2 seconds ~ before the next update
             try {
-                Thread.sleep(4000);
-                Thread.sleep(new Random().nextInt(1000));
+                Thread.sleep(7000);
+                Thread.sleep(new Random().nextInt(5000));
             } catch (InterruptedException e) { e.printStackTrace(); }
         }
     });
