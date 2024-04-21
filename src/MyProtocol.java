@@ -44,7 +44,7 @@ public class MyProtocol {
         new receiveThread(receivedQueue).start();
 
         routingMessage.start();
-        // clearRoutingTable.start();
+        clearRoutingTable.start();
 
         Thread.sleep(1000); // wait 1 second for framework
         chatInit();
@@ -484,7 +484,7 @@ public class MyProtocol {
 
     Thread clearRoutingTable = new Thread(() -> {
         while (true) {
-            try { Thread.sleep(120000); }
+            try { Thread.sleep(60000); }
             catch (InterruptedException e) { e.printStackTrace(); }
             routingTable.clear();
             routingTable.add(new RoutingInfo(srcUsername, SRC, SRC));
