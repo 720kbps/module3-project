@@ -484,7 +484,7 @@ public class MyProtocol {
 
     Thread clearRoutingTable = new Thread(() -> {
         while (true) {
-            try { Thread.sleep(60000); }
+            try { Thread.sleep(360000); }
             catch (InterruptedException e) { e.printStackTrace(); }
             routingTable.clear();
             routingTable.add(new RoutingInfo(srcUsername, SRC, SRC));
